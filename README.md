@@ -10,8 +10,6 @@ GitHub Pages：<https://lj789520.github.io/denim-fabric-catalog/>
 
 - `index.html`：商品九宫格首页和管理员后台入口。
 - `product.html?id=商品ID`：商品独立详情页。
-- 管理员演示账号：`admin`
-- 管理员演示密码：`admin123`
 
 ## 本地预览
 
