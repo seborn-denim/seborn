@@ -1,0 +1,5 @@
+denim-*.png
+.playwright-cli/
+.DS_Store
+Thumbs.db
+

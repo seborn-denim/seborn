@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>商品详情</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="product-detail-page">
+      <header class="detail-header">
+        <a class="detail-brand" href="index.html">
+          <span>D</span>
+          <strong>DENIM FABRIC</strong>
+        </a>
+        <a class="detail-back" href="index.html">
+          <i data-lucide="arrow-left"></i>
+          返回商品列表
+        </a>
+      </header>
+
+      <main class="detail-content" id="productDetail" hidden>
+        <section class="detail-gallery">
+          <div class="detail-main-image" id="detailMainImage"></div>
+          <div class="detail-thumbnails" id="detailThumbnails"></div>
+        </section>
+
+        <section class="detail-info">
+          <span class="detail-category" id="detailCategory"></span>
+          <h1 id="detailName"></h1>
+          <div class="detail-code" id="detailCode"></div>
+
+          <dl class="detail-specs" id="detailSpecs"></dl>
+
+          <section class="detail-company">
+            <h2>公司信息</h2>
+            <strong id="detailCompanyName"></strong>
+            <p id="detailCompanyAddress"></p>
+            <a id="detailCompanyPhone" href="#"></a>
+          </section>
+        </section>
+      </main>
+
+      <div class="detail-not-found" id="detailNotFound" hidden>
+        <strong>商品不存在或已下架</strong>
+        <a href="index.html">返回商品列表</a>
+      </div>
+    </div>
+
+    <script src="./vendor/lucide.min.js"></script>
+    <script src="./data.js"></script>
+    <script src="./product.js"></script>
+  </body>
+</html>
