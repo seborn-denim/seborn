@@ -21,6 +21,16 @@ python -m http.server 4173
 
 然后访问 `http://127.0.0.1:4173/`。
 
+## Supabase 初始化
+
+1. 打开 Supabase 项目的 `SQL Editor`。
+2. 执行 `supabase/setup.sql`。
+3. 进入 `Authentication` → `Users`，创建管理员账号：
+   - 邮箱：`3034642030@qq.com`
+   - 密码：按项目管理员约定设置
+   - 创建时开启 `Auto Confirm User`
+4. 确认 Storage 中出现公开存储桶 `product-images`。
+
 ## 说明
 
-当前版本是前端静态原型，商品和管理员状态保存在浏览器 `localStorage` 中。正式公开运营时，需要接入服务端登录鉴权、数据库和图片存储服务。
+网站优先从 Supabase 读取和保存商品数据，浏览器 `localStorage` 仅作为临时缓存和离线回退。管理员登录使用 Supabase Auth 校验，公开访问只能读取已上架商品。

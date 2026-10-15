@@ -1,5 +1,5 @@
 denim-*.png
 .playwright-cli/
+supabase/.temp/
 .DS_Store
 Thumbs.db
-

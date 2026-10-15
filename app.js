@@ -1,5 +1,6 @@
 const state = {
   isAdmin: false,
+  cloudReady: false,
   currentView: "products",
   statusFilter: "all",
   productSearch: "",
@@ -221,6 +222,51 @@ function persistState() {
       company: state.company
     })
   );
+}
+
+function cloudConfigured() {
+  return Boolean(
+    window.denimCloud && window.denimCloud.isConfigured()
+  );
+}
+
+async function hydrateFromCloud() {
+  if (!cloudConfigured()) {
+    state.cloudReady = false;
+    return;
+  }
+
+  try {
+    const catalog = await window.denimCloud.fetchCatalog();
+    if (!catalog) {
+      return;
+    }
+    state.categories = Array.isArray(catalog.categories)
+      ? catalog.categories
+      : [];
+    state.products = Array.isArray(catalog.products) ? catalog.products : [];
+    if (catalog.company && catalog.company.name) {
+      state.company = catalog.company;
+    }
+    state.cloudReady = true;
+    persistState();
+    renderStore();
+    renderAdminProducts();
+    renderCategories();
+    renderCompany();
+  } catch (error) {
+    state.cloudReady = false;
+    console.warn("Supabase catalog unavailable, using local data.", error);
+  }
+}
+
+function subscribeCloud() {
+  if (!cloudConfigured()) {
+    return () => {};
+  }
+  return window.denimCloud.subscribeCatalog(() => {
+    hydrateFromCloud();
+  });
 }
 
 function escapeHtml(value) {
@@ -625,7 +671,7 @@ function validateProduct(product) {
   return "";
 }
 
-function saveProduct(productId) {
+async function saveProduct(productId) {
   const product = state.products.find((item) => item.id === productId);
   if (!product) {
     return;
@@ -635,6 +681,19 @@ function saveProduct(productId) {
     showToast(error);
     return;
   }
+
+  if (cloudConfigured()) {
+    try {
+      const saved = await window.denimCloud.saveProduct(product);
+      if (saved) {
+        Object.assign(product, saved);
+      }
+    } catch (error) {
+      showToast(`云端保存失败：${error.message || "请检查管理员登录和数据表"}`);
+      return;
+    }
+  }
+
   product.updatedAt = "2026-10-15 22:15";
   persistState();
   renderAdminProducts();
@@ -642,11 +701,24 @@ function saveProduct(productId) {
   showToast("保存成功");
 }
 
-function archiveProduct(productId) {
+async function archiveProduct(productId) {
   const product = state.products.find((item) => item.id === productId);
   if (!product) {
     return;
   }
+
+  if (cloudConfigured() && !productId.startsWith("p-")) {
+    try {
+      const saved = await window.denimCloud.archiveProduct(productId);
+      if (saved) {
+        Object.assign(product, saved);
+      }
+    } catch (error) {
+      showToast(`云端归档失败：${error.message || "请检查管理员权限"}`);
+      return;
+    }
+  }
+
   product.status = "archived";
   product.updatedAt = "2026-10-15 22:15";
   persistState();
@@ -720,7 +792,17 @@ async function addImages(productId, fileList) {
 
   try {
     const selected = files.slice(0, remaining);
-    const images = await Promise.all(selected.map(readFileAsDataUrl));
+    let images = [];
+    if (cloudConfigured() && state.isAdmin) {
+      showToast("正在上传图片到云端...");
+      images = await Promise.all(
+        selected.map((file) =>
+          window.denimCloud.uploadProductImage(file, product.id)
+        )
+      );
+    } else {
+      images = await Promise.all(selected.map(readFileAsDataUrl));
+    }
     product.images = product.images.concat(images);
     product.updatedAt = "图片已更新，尚未保存";
     persistState();
@@ -777,7 +859,7 @@ function closeModal(modalId) {
   modal.setAttribute("aria-hidden", "true");
 }
 
-function saveCategory(event) {
+async function saveCategory(event) {
   event.preventDefault();
   const name = $("#categoryName").value.trim();
   const sort = Number($("#categorySort").value) || 0;
@@ -801,17 +883,36 @@ function saveCategory(event) {
   const existing = state.categories.find(
     (item) => item.id === state.editingCategoryId
   );
-  if (existing) {
-    existing.name = name;
-    existing.sort = sort;
-    existing.enabled = enabled;
+  const category = existing || {
+    id: `cat-${Date.now()}`,
+    name,
+    sort,
+    enabled
+  };
+
+  if (cloudConfigured()) {
+    try {
+      const saved = await window.denimCloud.saveCategory({
+        ...category,
+        name,
+        sort,
+        enabled
+      });
+      if (saved) {
+        Object.assign(category, saved);
+      }
+    } catch (error) {
+      showToast(`云端保存失败：${error.message || "请检查管理员权限"}`);
+      return;
+    }
   } else {
-    state.categories.push({
-      id: `cat-${Date.now()}`,
-      name,
-      sort,
-      enabled
-    });
+    category.name = name;
+    category.sort = sort;
+    category.enabled = enabled;
+  }
+
+  if (!existing) {
+    state.categories.push(category);
   }
 
   persistState();
@@ -822,7 +923,7 @@ function saveCategory(event) {
   showToast("保存成功");
 }
 
-function saveCompany(event) {
+async function saveCompany(event) {
   event.preventDefault();
   const company = {
     name: $("#companyName").value.trim(),
@@ -833,6 +934,19 @@ function saveCompany(event) {
     showToast("请填写公司名称、地址和联系电话。");
     return;
   }
+
+  if (cloudConfigured()) {
+    try {
+      const saved = await window.denimCloud.saveCompany(company);
+      if (saved) {
+        Object.assign(company, saved);
+      }
+    } catch (error) {
+      showToast(`云端保存失败：${error.message || "请检查管理员权限"}`);
+      return;
+    }
+  }
+
   state.company = company;
   persistState();
   renderStore();
@@ -842,25 +956,55 @@ function saveCompany(event) {
 function bindEvents() {
   $("#openAdminLogin").addEventListener("click", () => openModal("adminLoginModal"));
   $("#returnStoreButton").addEventListener("click", showStore);
-  $("#logoutButton").addEventListener("click", () => {
+  $("#logoutButton").addEventListener("click", async () => {
     state.isAdmin = false;
+    if (cloudConfigured()) {
+      await window.denimCloud.signOut();
+    }
     showStore();
     showToast("已退出管理");
   });
 
-  $("#adminLoginForm").addEventListener("submit", (event) => {
+  $("#adminLoginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const username = $("#adminUsername").value.trim();
     const password = $("#adminPassword").value;
-    if (username !== "xbl123" || password !== "xbl123") {
+    const expectedLogin = window.denimCloud
+      ? window.denimCloud.adminLogin
+      : "xbl123";
+    if (username !== expectedLogin) {
       showToast("管理员账号或密码不正确。");
       return;
     }
+
+    if (cloudConfigured()) {
+      try {
+        await window.denimCloud.signIn(
+          window.denimCloud.adminEmail,
+          password
+        );
+        await hydrateFromCloud();
+      } catch (error) {
+        showToast(
+          `登录失败：${error.message || "请检查 Supabase 管理员账号"}`
+        );
+        return;
+      }
+    } else if (password !== "xbl123") {
+      showToast("管理员账号或密码不正确。");
+      return;
+    }
+
     state.isAdmin = true;
     $("#adminUsername").value = "";
     $("#adminPassword").value = "";
     closeModal("adminLoginModal");
     showAdmin();
+    showToast(
+      state.cloudReady
+        ? "登录成功"
+        : "登录成功，请先执行 supabase/setup.sql"
+    );
   });
 
   $("#storeSearch").addEventListener("input", (event) => {
@@ -989,7 +1133,7 @@ function bindEvents() {
 
   $("#addCategoryButton").addEventListener("click", () => openCategoryModal());
 
-  $("#categoriesBody").addEventListener("click", (event) => {
+  $("#categoriesBody").addEventListener("click", async (event) => {
     const toggleButton = event.target.closest("[data-toggle-category]");
     const editButton = event.target.closest("[data-edit-category]");
     if (toggleButton) {
@@ -997,7 +1141,23 @@ function bindEvents() {
         (item) => item.id === toggleButton.dataset.toggleCategory
       );
       if (category) {
-        category.enabled = !category.enabled;
+        const nextEnabled = !category.enabled;
+        if (cloudConfigured()) {
+          try {
+            const saved = await window.denimCloud.saveCategory({
+              ...category,
+              enabled: nextEnabled
+            });
+            if (saved) {
+              Object.assign(category, saved);
+            }
+          } catch (error) {
+            showToast(`云端更新失败：${error.message || "请检查管理员权限"}`);
+            return;
+          }
+        } else {
+          category.enabled = nextEnabled;
+        }
         persistState();
         renderCategories();
         renderAdminProducts();
@@ -1029,7 +1189,7 @@ function bindEvents() {
   $("#companyForm").addEventListener("submit", saveCompany);
 }
 
-function init() {
+async function init() {
   restoreState();
   bindEvents();
   renderStore();
@@ -1037,6 +1197,8 @@ function init() {
   renderCategories();
   renderCompany();
   showStore();
+  await hydrateFromCloud();
+  subscribeCloud();
   persistState();
   refreshIcons();
 }

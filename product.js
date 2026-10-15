@@ -116,11 +116,36 @@ function renderProduct(product, company, categories) {
   }
 }
 
-function init() {
+async function init() {
   const params = new URLSearchParams(window.location.search);
   const productId = params.get("id");
-  const data = getData();
-  const product = data.products.find((item) => item.id === productId);
+  let data = getData();
+  let product = null;
+
+  if (
+    window.denimCloud &&
+    window.denimCloud.isConfigured() &&
+    productId
+  ) {
+    try {
+      product = await window.denimCloud.fetchProduct(productId);
+      const catalog = await window.denimCloud.fetchCatalog();
+      if (catalog) {
+        data = {
+          products: catalog.products || [],
+          categories: catalog.categories || data.categories,
+          company: catalog.company && catalog.company.name
+            ? catalog.company
+            : data.company
+        };
+      }
+    } catch (error) {
+      console.warn("Unable to load product from Supabase.", error);
+      product = data.products.find((item) => item.id === productId) || null;
+    }
+  } else if (productId) {
+    product = data.products.find((item) => item.id === productId);
+  }
 
   if (!product || product.status !== "published") {
     $("#detailNotFound").hidden = false;
