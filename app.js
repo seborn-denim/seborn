@@ -852,7 +852,7 @@ function bindEvents() {
     event.preventDefault();
     const username = $("#adminUsername").value.trim();
     const password = $("#adminPassword").value;
-    if (username !== "admin" || password !== "admin123") {
+    if (username !== "xbl123" || password !== "xbl123") {
       showToast("管理员账号或密码不正确。");
       return;
     }
