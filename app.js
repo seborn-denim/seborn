@@ -201,9 +201,12 @@ const IMPORT_FIELD_ALIASES = {
   code: ["商品编号", "编号", "货号", "款号", "商品货号"],
   category: ["分类", "类别", "品种", "系列"],
   color: ["颜色", "色号", "色系"],
+  yarnCount: ["纱支", "纱支数"],
   weave: ["织法", "组织", "纹路", "编织"],
   composition: ["成分", "成份", "材质", "面料成分"],
-  width: ["布宽", "门幅", "幅宽", "宽度"],
+  width: ["布宽", "门幅", "幅宽", "宽度", "包边幅宽", "有效幅宽"],
+  preWashWeight: ["洗前克重", "洗前重量", "洗前"],
+  postWashWeight: ["洗后克重", "洗后重量", "洗后"],
   weight: ["克重", "重量", "gsm", "oz", "盎司"],
   location: ["挂卡区域", "挂卡区", "区域", "位置", "存放位置"],
   images: ["图片", "图片地址", "图片链接", "image", "images", "图片url"],
@@ -745,6 +748,13 @@ function parseLabeledImport(text) {
     const match = line.match(/^([^:：\t]+?)\s*[:：\t]\s*(.*)$/);
     if (!match) {
       if (
+        !current.code &&
+        /^[A-Za-z0-9._-]{3,}$/.test(line)
+      ) {
+        current.code = line.toUpperCase();
+        return;
+      }
+      if (
         Array.isArray(current.images) &&
         /^https?:\/\//i.test(line)
       ) {
@@ -796,16 +806,30 @@ function parseProductImportText(text) {
       if (code && !duplicate) {
         seenCodes.add(code);
       }
+      const weaveParts = [String(record.weave || "").trim()];
+      if (String(record.yarnCount || "").trim()) {
+        weaveParts.push(`纱支：${String(record.yarnCount).trim()}`);
+      }
+      const weightParts = [];
+      if (String(record.preWashWeight || "").trim()) {
+        weightParts.push(`洗前克重：${String(record.preWashWeight).trim()}`);
+      }
+      if (String(record.postWashWeight || "").trim()) {
+        weightParts.push(`洗后克重：${String(record.postWashWeight).trim()}`);
+      }
+      if (!weightParts.length && String(record.weight || "").trim()) {
+        weightParts.push(String(record.weight).trim());
+      }
       return {
         code,
         name: String(record.name || "").trim(),
         categoryName,
         categoryId: category ? category.id : "",
         color: String(record.color || "").trim(),
-        weave: String(record.weave || "").trim(),
+        weave: weaveParts.filter(Boolean).join("；"),
         composition: String(record.composition || "").trim(),
         width: String(record.width || "").trim(),
-        weight: String(record.weight || "").trim(),
+        weight: weightParts.join("；"),
         location: String(record.location || "").trim(),
         images: Array.isArray(record.images) ? record.images : [],
         status: !code ? "invalid" : duplicate ? "duplicate" : "valid"
