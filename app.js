@@ -14,6 +14,8 @@ const state = {
   companyCarouselAnimationTimer: null,
   companyCarouselShowingBack: false,
   cloudUnsubscribe: null,
+  productImportRecords: [],
+  importParseTimer: null,
   categories: [
     { id: "cat-1", name: "经典靛蓝", sort: 1, enabled: true },
     { id: "cat-2", name: "原色牛仔", sort: 2, enabled: true },
@@ -193,6 +195,19 @@ const viewTitles = {
   products: "商品管理",
   categories: "分类管理",
   company: "公司信息"
+};
+
+const IMPORT_FIELD_ALIASES = {
+  code: ["商品编号", "编号", "货号", "款号", "商品货号"],
+  category: ["分类", "类别", "品种", "系列"],
+  color: ["颜色", "色号", "色系"],
+  weave: ["织法", "组织", "纹路", "编织"],
+  composition: ["成分", "成份", "材质", "面料成分"],
+  width: ["布宽", "门幅", "幅宽", "宽度"],
+  weight: ["克重", "重量", "gsm", "oz", "盎司"],
+  location: ["挂卡区域", "挂卡区", "区域", "位置", "存放位置"],
+  images: ["图片", "图片地址", "图片链接", "image", "images", "图片url"],
+  name: ["商品名称", "名称", "品名"]
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -610,6 +625,333 @@ function statusOptions(selectedStatus) {
       `
     )
     .join("");
+}
+
+function normalizeImportKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s:：_\-]/g, "");
+}
+
+function canonicalImportField(value) {
+  const key = normalizeImportKey(value);
+  return Object.keys(IMPORT_FIELD_ALIASES).find((field) =>
+    IMPORT_FIELD_ALIASES[field].some(
+      (alias) => normalizeImportKey(alias) === key
+    )
+  );
+}
+
+function splitDelimitedLine(line, delimiter) {
+  const cells = [];
+  let current = "";
+  let quoted = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (character === '"') {
+      if (quoted && line[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+      continue;
+    }
+    if (character === delimiter && !quoted) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += character;
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function splitImportImages(value) {
+  return String(value || "")
+    .split(/[\s,，;；|]+/)
+    .map((item) => item.trim())
+    .filter((item) => /^https?:\/\//i.test(item));
+}
+
+function parseTableImport(text) {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length < 2) {
+    return [];
+  }
+
+  const firstLine = lines[0];
+  const delimiter = firstLine.includes("\t")
+    ? "\t"
+    : firstLine.includes(",")
+      ? ","
+      : "";
+  if (!delimiter) {
+    return [];
+  }
+
+  const headers = splitDelimitedLine(firstLine, delimiter).map(
+    canonicalImportField
+  );
+  if (headers.filter(Boolean).length < 2) {
+    return [];
+  }
+
+  return lines.slice(1).map((line) => {
+    const cells = splitDelimitedLine(line, delimiter);
+    const record = {};
+    headers.forEach((field, index) => {
+      if (!field) {
+        return;
+      }
+      const value = cells[index] ? cells[index].trim() : "";
+      record[field] =
+        field === "images" ? splitImportImages(value) : value;
+    });
+    return record;
+  });
+}
+
+function parseLabeledImport(text) {
+  const records = [];
+  let current = {};
+
+  const pushCurrent = () => {
+    if (Object.keys(current).length) {
+      records.push(current);
+      current = {};
+    }
+  };
+
+  text.split(/\r?\n/).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      if (current.code) {
+        pushCurrent();
+      }
+      return;
+    }
+    if (/^-{3,}$/.test(line)) {
+      pushCurrent();
+      return;
+    }
+
+    const match = line.match(/^([^:：\t]+?)\s*[:：\t]\s*(.*)$/);
+    if (!match) {
+      if (
+        Array.isArray(current.images) &&
+        /^https?:\/\//i.test(line)
+      ) {
+        current.images.push(line);
+      }
+      return;
+    }
+
+    const field = canonicalImportField(match[1]);
+    if (!field) {
+      return;
+    }
+    const value = match[2].trim();
+    if (field === "code" && current.code && value) {
+      pushCurrent();
+    }
+    current[field] =
+      field === "images" ? splitImportImages(value) : value;
+  });
+
+  pushCurrent();
+  return records;
+}
+
+function parseProductImportText(text) {
+  const tableRecords = parseTableImport(text);
+  const records = tableRecords.length
+    ? tableRecords
+    : parseLabeledImport(text);
+  const existingCodes = new Set(
+    state.products.map((product) => String(product.code || "").toUpperCase())
+  );
+  const seenCodes = new Set(existingCodes);
+
+  return records
+    .filter((record) =>
+      Object.values(record).some((value) =>
+        Array.isArray(value) ? value.length : String(value || "").trim()
+      )
+    )
+    .map((record) => {
+      const code = String(record.code || "").trim().toUpperCase();
+      const categoryName = String(record.category || "").trim();
+      const category = state.categories.find(
+        (item) =>
+          item.name.toLowerCase() === categoryName.toLowerCase()
+      );
+      const duplicate = Boolean(code && seenCodes.has(code));
+      if (code && !duplicate) {
+        seenCodes.add(code);
+      }
+      return {
+        code,
+        name: String(record.name || "").trim(),
+        categoryName,
+        categoryId: category ? category.id : "",
+        color: String(record.color || "").trim(),
+        weave: String(record.weave || "").trim(),
+        composition: String(record.composition || "").trim(),
+        width: String(record.width || "").trim(),
+        weight: String(record.weight || "").trim(),
+        location: String(record.location || "").trim(),
+        images: Array.isArray(record.images) ? record.images : [],
+        status: !code ? "invalid" : duplicate ? "duplicate" : "valid"
+      };
+    });
+}
+
+function importStatusText(status) {
+  if (status === "valid") {
+    return "可导入";
+  }
+  if (status === "duplicate") {
+    return "编号重复";
+  }
+  return "缺少编号";
+}
+
+function renderImportPreview() {
+  const records = state.productImportRecords;
+  const validCount = records.filter((item) => item.status === "valid").length;
+  const duplicateCount = records.filter(
+    (item) => item.status === "duplicate"
+  ).length;
+  const invalidCount = records.filter(
+    (item) => item.status === "invalid"
+  ).length;
+
+  $("#importPreviewTitle").textContent = records.length
+    ? `识别结果：${validCount} 个可导入，${duplicateCount} 个重复，${invalidCount} 个缺少编号`
+    : "识别结果";
+  $("#confirmProductImport").disabled = validCount === 0;
+
+  $("#productImportPreview").innerHTML = records.length
+    ? records
+        .map(
+          (record) => `
+            <article class="import-preview-item">
+              <header>
+                <strong>${escapeHtml(record.code || "未填写编号")}</strong>
+                <span class="import-status ${record.status}">${importStatusText(
+                  record.status
+                )}</span>
+              </header>
+              <p>
+                分类：${escapeHtml(record.categoryName || "未分类")}
+                · 颜色：${escapeHtml(record.color || "未填写")}
+                · 织法：${escapeHtml(record.weave || "未填写")}
+                <br />
+                成分：${escapeHtml(record.composition || "未填写")}
+                · 布宽：${escapeHtml(record.width || "未填写")}
+                · 克重：${escapeHtml(record.weight || "未填写")}
+                · 挂卡区域：${escapeHtml(record.location || "未填写")}
+                <br />
+                图片：${record.images.length} 张
+              </p>
+            </article>
+          `
+        )
+        .join("")
+    : '<div class="import-preview-empty">粘贴商品资料后会自动识别。</div>';
+  refreshIcons();
+}
+
+function resetProductImport() {
+  state.productImportRecords = [];
+  $("#productImportText").value = "";
+  $("#confirmProductImport").disabled = true;
+  renderImportPreview();
+}
+
+function updateProductImportPreview() {
+  const text = $("#productImportText").value.trim();
+  state.productImportRecords = text ? parseProductImportText(text) : [];
+  renderImportPreview();
+}
+
+async function confirmProductImport() {
+  const records = state.productImportRecords.filter(
+    (record) => record.status === "valid"
+  );
+  if (!records.length) {
+    showToast("没有可导入的商品。");
+    return;
+  }
+
+  const confirmButton = $("#confirmProductImport");
+  confirmButton.disabled = true;
+  confirmButton.textContent = "正在导入...";
+  let importedCount = 0;
+  let failedCount = 0;
+  const importedProducts = [];
+
+  for (let index = 0; index < records.length; index += 1) {
+    const record = records[index];
+    const product = {
+      id: `p-${Date.now()}-${index}`,
+      name: record.name || record.code,
+      code: record.code,
+      categoryId: record.categoryId,
+      color: record.color,
+      weave: record.weave,
+      composition: record.composition,
+      width: record.width,
+      weight: record.weight,
+      location: record.location,
+      status: "draft",
+      fabricClass: "fabric-indigo",
+      images: record.images,
+      updatedAt: "尚未保存"
+    };
+
+    if (cloudConfigured()) {
+      try {
+        const saved = await window.denimCloud.saveProduct(product);
+        if (saved) {
+          Object.assign(product, saved);
+        }
+        importedProducts.push(product);
+        importedCount += 1;
+      } catch (error) {
+        failedCount += 1;
+        console.warn("Import product failed.", record.code, error);
+      }
+    } else {
+      importedProducts.push(product);
+      importedCount += 1;
+    }
+  }
+
+  if (importedProducts.length) {
+    state.products = importedProducts.concat(state.products);
+    persistState();
+    renderAdminProducts();
+    renderStore();
+  }
+
+  confirmButton.innerHTML =
+    '<i data-lucide="import"></i>确认导入';
+  refreshIcons();
+  closeModal("productImportModal");
+  resetProductImport();
+  showToast(
+    failedCount
+      ? `成功导入 ${importedCount} 个，失败 ${failedCount} 个。`
+      : `成功导入 ${importedCount} 个商品。`
+  );
 }
 
 function renderAdminProductImage(product) {
@@ -1405,6 +1747,23 @@ function bindEvents() {
   $$('[data-action="add-product"]').forEach((button) => {
     button.addEventListener("click", addProduct);
   });
+
+  $("#openProductImport").addEventListener("click", () => {
+    resetProductImport();
+    openModal("productImportModal");
+  });
+
+  $("#parseProductImport").addEventListener("click", updateProductImportPreview);
+
+  $("#productImportText").addEventListener("input", () => {
+    window.clearTimeout(state.importParseTimer);
+    state.importParseTimer = window.setTimeout(
+      updateProductImportPreview,
+      400
+    );
+  });
+
+  $("#confirmProductImport").addEventListener("click", confirmProductImport);
 
   $$("#statusFilter button").forEach((button) => {
     button.addEventListener("click", () => {

@@ -154,10 +154,16 @@
                 <h1>商品管理</h1>
                 <p>上传商品图片，并在图片下方配置客户端展示的产品信息。</p>
               </div>
-              <button class="primary-button" data-action="add-product">
-                <i data-lucide="plus"></i>
-                新增商品
-              </button>
+              <div class="page-actions">
+                <button class="secondary-button" id="openProductImport" type="button">
+                  <i data-lucide="clipboard-paste"></i>
+                  批量导入
+                </button>
+                <button class="primary-button" data-action="add-product">
+                  <i data-lucide="plus"></i>
+                  新增商品
+                </button>
+              </div>
             </div>
 
             <div class="toolbar">
@@ -284,6 +290,48 @@
           </section>
         </main>
       </div>
+    </div>
+
+    <div class="modal-backdrop" id="productImportModal" aria-hidden="true">
+      <section class="modal-panel import-modal" role="dialog" aria-modal="true" aria-labelledby="productImportTitle">
+        <div class="modal-head">
+          <div>
+            <h2 id="productImportTitle">批量导入商品</h2>
+            <p>支持粘贴 Excel 表格或“字段：内容”格式。</p>
+          </div>
+          <button class="icon-button" data-close-modal="productImportModal" aria-label="关闭">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <label class="field">
+            <span>商品资料</span>
+            <textarea
+              id="productImportText"
+              class="import-textarea"
+              placeholder="商品编号：TL11110&#10;分类：四面弹&#10;颜色：深蓝&#10;织法：3/1 右斜&#10;成分：98% 棉 2% 氨纶&#10;布宽：148 cm&#10;克重：12 oz&#10;挂卡区域：A-01&#10;图片：https://..."
+            ></textarea>
+          </label>
+
+          <div class="import-preview-head">
+            <strong id="importPreviewTitle">识别结果</strong>
+            <button class="secondary-button" id="parseProductImport" type="button">
+              <i data-lucide="scan-search"></i>
+              识别内容
+            </button>
+          </div>
+          <div class="import-preview" id="productImportPreview"></div>
+        </div>
+
+        <div class="modal-foot">
+          <button class="secondary-button" type="button" data-close-modal="productImportModal">取消</button>
+          <button class="primary-button" id="confirmProductImport" type="button" disabled>
+            <i data-lucide="import"></i>
+            确认导入
+          </button>
+        </div>
+      </section>
     </div>
 
     <div class="modal-backdrop" id="adminLoginModal" aria-hidden="true">
