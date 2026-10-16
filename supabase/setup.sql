@@ -34,8 +34,12 @@ create table if not exists public.company_profile (
   name text not null default '',
   address text not null default '',
   phone text not null default '',
+  logo_url text not null default '',
   updated_at timestamptz not null default now()
 );
+
+alter table public.company_profile
+  add column if not exists logo_url text not null default '';
 
 create index if not exists products_status_sort_idx
   on public.products (status, sort, updated_at desc);
@@ -256,12 +260,13 @@ set name = excluded.name,
     sort = excluded.sort,
     fabric_class = excluded.fabric_class;
 
-insert into public.company_profile (id, name, address, phone)
+insert into public.company_profile (id, name, address, phone, logo_url)
 values (
   'company_profile',
   '示例纺织有限公司',
   '广东省佛山市顺德区示例工业园区 8 号',
-  '0757-88888888'
+  '0757-88888888',
+  ''
 )
 on conflict (id) do nothing;
 

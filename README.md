@@ -31,6 +31,9 @@ python -m http.server 4173
    - 创建时开启 `Auto Confirm User`
 4. 确认 Storage 中出现公开存储桶 `product-images`。
 
+如果项目已经初始化过，只需在 `SQL Editor` 中执行
+`supabase/add-company-logo.sql`，用于增加公司图标字段。
+
 ## 说明
 
 网站优先从 Supabase 读取和保存商品数据，浏览器 `localStorage` 仅作为临时缓存和离线回退。管理员登录使用 Supabase Auth 校验，公开访问只能读取已上架商品。

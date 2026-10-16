@@ -31,10 +31,15 @@
 
       <main class="store-content">
         <section class="store-company">
-          <div>
-            <span class="store-eyebrow">PRODUCT CATALOG</span>
-            <h1 id="storeCompanyName">牛仔布料商品目录</h1>
-            <p id="storeCompanyInfo">查看牛仔布料的颜色、织法、成分、布宽、克重和挂卡区域。</p>
+          <div class="store-company-main">
+            <div class="store-company-logo" id="storeCompanyLogo">
+              <span class="company-logo-fallback">D</span>
+            </div>
+            <div class="store-company-copy">
+              <span class="store-eyebrow">PRODUCT CATALOG</span>
+              <h1 id="storeCompanyName">牛仔布料商品目录</h1>
+              <p id="storeCompanyInfo">查看牛仔布料的颜色、织法、成分、布宽、克重和挂卡区域。</p>
+            </div>
           </div>
           <div class="store-summary">
             <strong id="storeProductCount">0</strong>
@@ -193,6 +198,32 @@
 
             <section class="panel form-panel">
               <form id="companyForm">
+                <div class="company-logo-editor">
+                  <div class="company-logo-preview" id="companyLogoPreview">
+                    <span class="company-logo-fallback">D</span>
+                  </div>
+                  <div class="company-logo-copy">
+                    <strong>公司图标</strong>
+                    <span>建议使用正方形 PNG、JPG、WebP 或 SVG，图标主体尽量居中。</span>
+                    <div class="company-logo-actions">
+                      <label class="upload-button" for="companyLogoInput">
+                        <i data-lucide="image-plus"></i>
+                        上传公司图标
+                      </label>
+                      <input
+                        class="file-input"
+                        id="companyLogoInput"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      />
+                      <button class="secondary-button" type="button" id="removeCompanyLogo">
+                        <i data-lucide="trash-2"></i>
+                        移除图标
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="form-grid">
                   <label class="field">
                     <span>公司名称</span>

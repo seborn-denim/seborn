@@ -155,6 +155,7 @@ window.DENIM_DATA = {
   company: {
     name: "示例纺织有限公司",
     address: "广东省佛山市顺德区示例工业园区 8 号",
-    phone: "0757-88888888"
+    phone: "0757-88888888",
+    logoUrl: ""
   }
 };

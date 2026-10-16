@@ -60,7 +60,8 @@
     return {
       name: row && row.name ? row.name : "",
       address: row && row.address ? row.address : "",
-      phone: row && row.phone ? row.phone : ""
+      phone: row && row.phone ? row.phone : "",
+      logoUrl: row && row.logo_url ? row.logo_url : ""
     };
   }
 
@@ -227,6 +228,7 @@
           name: company.name,
           address: company.address,
           phone: company.phone,
+          logo_url: company.logoUrl || "",
           updated_at: new Date().toISOString()
         },
         { onConflict: "id" }
@@ -250,6 +252,31 @@
       .toString(36)
       .slice(2, 10)}.${extension}`;
     const path = `${productId}/${safeName}`;
+    const { error } = await client.storage
+      .from(config.imageBucket)
+      .upload(path, file, {
+        cacheControl: "31536000",
+        contentType: file.type,
+        upsert: false
+      });
+    if (error) {
+      throw error;
+    }
+    const { data } = client.storage.from(config.imageBucket).getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  async function uploadCompanyLogo(file) {
+    if (!configured) {
+      return null;
+    }
+    const extension = file.name && file.name.includes(".")
+      ? file.name.split(".").pop().toLowerCase()
+      : "png";
+    const safeName = `${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 10)}.${extension}`;
+    const path = `company-logo/${safeName}`;
     const { error } = await client.storage
       .from(config.imageBucket)
       .upload(path, file, {
@@ -303,6 +330,7 @@
     saveCategory,
     saveCompany,
     uploadProductImage,
+    uploadCompanyLogo,
     subscribeCatalog
   };
 })();

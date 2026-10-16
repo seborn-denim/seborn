@@ -8,6 +8,7 @@ const state = {
   storePage: 1,
   storePageSize: 9,
   editingCategoryId: null,
+  pendingCompanyLogoFile: null,
   categories: [
     { id: "cat-1", name: "经典靛蓝", sort: 1, enabled: true },
     { id: "cat-2", name: "原色牛仔", sort: 2, enabled: true },
@@ -282,6 +283,15 @@ function displayValue(value) {
   return value ? escapeHtml(value) : "未填写";
 }
 
+function renderCompanyLogo(target, logoUrl) {
+  if (!target) {
+    return;
+  }
+  target.innerHTML = logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="公司图标" />`
+    : '<span class="company-logo-fallback">D</span>';
+}
+
 function refreshIcons() {
   if (window.lucide) {
     window.lucide.createIcons();
@@ -358,6 +368,7 @@ function renderStore() {
   $("#storeCompanyName").textContent = state.company.name || "牛仔布料商品目录";
   $("#storeCompanyInfo").textContent =
     state.company.address || "查看牛仔布料的颜色、织法、成分、布宽、克重和挂卡区域。";
+  renderCompanyLogo($("#storeCompanyLogo"), state.company.logoUrl || "");
   $("#storeProductCount").textContent = products.length;
   $("#storeGrid").innerHTML = pageProducts.map(renderStoreProduct).join("");
   $("#storeEmpty").hidden = pageProducts.length > 0;
@@ -603,6 +614,10 @@ function renderCompany() {
   $("#companyName").value = state.company.name;
   $("#companyAddress").value = state.company.address;
   $("#companyPhone").value = state.company.phone;
+  renderCompanyLogo(
+    $("#companyLogoPreview"),
+    state.company.logoUrl || ""
+  );
 }
 
 function switchView(view) {
@@ -928,7 +943,8 @@ async function saveCompany(event) {
   const company = {
     name: $("#companyName").value.trim(),
     address: $("#companyAddress").value.trim(),
-    phone: $("#companyPhone").value.trim()
+    phone: $("#companyPhone").value.trim(),
+    logoUrl: state.company.logoUrl || ""
   };
   if (!company.name || !company.address || !company.phone) {
     showToast("请填写公司名称、地址和联系电话。");
@@ -937,6 +953,11 @@ async function saveCompany(event) {
 
   if (cloudConfigured()) {
     try {
+      if (state.pendingCompanyLogoFile) {
+        company.logoUrl = await window.denimCloud.uploadCompanyLogo(
+          state.pendingCompanyLogoFile
+        );
+      }
       const saved = await window.denimCloud.saveCompany(company);
       if (saved) {
         Object.assign(company, saved);
@@ -945,8 +966,11 @@ async function saveCompany(event) {
       showToast(`云端保存失败：${error.message || "请检查管理员权限"}`);
       return;
     }
+  } else if (state.pendingCompanyLogoFile) {
+    company.logoUrl = await readFileAsDataUrl(state.pendingCompanyLogoFile);
   }
 
+  state.pendingCompanyLogoFile = null;
   state.company = company;
   persistState();
   renderStore();
@@ -1187,6 +1211,32 @@ function bindEvents() {
 
   $("#categoryForm").addEventListener("submit", saveCategory);
   $("#companyForm").addEventListener("submit", saveCompany);
+  $("#companyLogoInput").addEventListener("change", async (event) => {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("公司图标不能超过 2MB。");
+      return;
+    }
+    try {
+      const previewUrl = await readFileAsDataUrl(file);
+      state.pendingCompanyLogoFile = file;
+      renderCompanyLogo($("#companyLogoPreview"), previewUrl);
+      showToast("图标已选择，保存后生效");
+    } catch (error) {
+      showToast("图标读取失败，请重新选择。");
+    }
+  });
+
+  $("#removeCompanyLogo").addEventListener("click", () => {
+    state.pendingCompanyLogoFile = null;
+    state.company.logoUrl = "";
+    renderCompanyLogo($("#companyLogoPreview"), "");
+    showToast("图标已移除，保存后生效");
+  });
 }
 
 async function init() {
