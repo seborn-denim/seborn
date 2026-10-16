@@ -73,9 +73,11 @@
   }
 
   function productRow(product) {
+    const code = product.code.trim().toUpperCase();
+    const name = (product.name || code || "未命名商品").trim();
     return {
-      name: product.name.trim(),
-      code: product.code.trim().toUpperCase(),
+      name,
+      code,
       category_id: product.categoryId || null,
       color: product.color || "",
       weave: product.weave || "",

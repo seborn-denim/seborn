@@ -690,10 +690,6 @@ function renderAdminProductCard(product) {
 
         <div class="editor-grid">
           <label class="field">
-            <span>商品名称</span>
-            <input data-product-id="${product.id}" data-field="name" type="text" value="${escapeHtml(product.name)}" />
-          </label>
-          <label class="field">
             <span>商品编号</span>
             <input data-product-id="${product.id}" data-field="code" type="text" value="${escapeHtml(product.code)}" />
           </label>
@@ -904,9 +900,6 @@ function updateProductFromInput(target) {
 }
 
 function validateProduct(product) {
-  if (!product.name.trim()) {
-    return "请填写商品名称。";
-  }
   if (!product.code.trim()) {
     return "请填写商品编号。";
   }
@@ -947,6 +940,9 @@ async function saveProduct(productId) {
     }
   }
 
+  if (!String(product.name || "").trim()) {
+    product.name = product.code.trim().toUpperCase();
+  }
   product.updatedAt = "2026-10-15 22:15";
   persistState();
   renderAdminProducts();
@@ -1049,9 +1045,9 @@ function addProduct() {
   const card = $(`[data-product-card="${id}"]`);
   if (card) {
     card.scrollIntoView({ behavior: "smooth", block: "start" });
-    const nameInput = $('[data-field="name"]', card);
-    if (nameInput) {
-      nameInput.focus();
+    const codeInput = $('[data-field="code"]', card);
+    if (codeInput) {
+      codeInput.focus();
     }
   }
 }
