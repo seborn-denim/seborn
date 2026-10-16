@@ -1240,7 +1240,7 @@ function startCompanyCarousel() {
       state.companyCarouselShowingBack = false;
       state.companyCarouselAnimationTimer = null;
     }, 900);
-  }, 3000);
+    }, 5000);
 }
 
 function showAdmin() {
