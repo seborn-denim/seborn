@@ -1213,10 +1213,11 @@ function stopCompanyCarousel() {
   );
 }
 
-function startCompanyCarousel() {
-  stopCompanyCarousel();
+function scheduleCompanyCarousel() {
   const shell = $("#companyFlipShell");
   if (
+    state.companyCarouselTimer ||
+    shell.classList.contains("is-hidden") ||
     window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
   ) {
@@ -1240,7 +1241,23 @@ function startCompanyCarousel() {
       state.companyCarouselShowingBack = false;
       state.companyCarouselAnimationTimer = null;
     }, 900);
-    }, 5000);
+  }, 5000);
+}
+
+function pauseCompanyCarousel() {
+  if (state.companyCarouselTimer) {
+    window.clearInterval(state.companyCarouselTimer);
+    state.companyCarouselTimer = null;
+  }
+}
+
+function resumeCompanyCarousel() {
+  scheduleCompanyCarousel();
+}
+
+function startCompanyCarousel() {
+  stopCompanyCarousel();
+  scheduleCompanyCarousel();
 }
 
 function showAdmin() {
@@ -1727,6 +1744,20 @@ function bindEvents() {
     state.storePage = 1;
     renderStore();
   });
+
+  const companyCarousel = $("#companyFlipShell");
+  if (
+    window.matchMedia &&
+    window.matchMedia("(hover: hover)").matches
+  ) {
+    companyCarousel.addEventListener("mouseenter", pauseCompanyCarousel);
+    companyCarousel.addEventListener("mouseleave", resumeCompanyCarousel);
+  }
+  companyCarousel.addEventListener("touchstart", pauseCompanyCarousel, {
+    passive: true
+  });
+  companyCarousel.addEventListener("touchend", resumeCompanyCarousel);
+  companyCarousel.addEventListener("touchcancel", resumeCompanyCarousel);
 
   $("#storeCategoryGrid").addEventListener("click", (event) => {
     const button = event.target.closest("[data-store-category]");
