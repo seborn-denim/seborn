@@ -1,10 +1,10 @@
-# Denim Fabric Catalog
+# 西布朗 SEBORN 牛仔面料展示
 
 牛仔布料商品展示网站，包含公开商品九宫格首页、独立商品详情页和管理员商品维护界面。
 
 ## 在线访问
 
-GitHub Pages：<https://lj789520.github.io/denim-fabric-catalog/>
+GitHub Pages：<https://lj789520.github.io/seborn/>
 
 ## 页面
 

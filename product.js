@@ -78,7 +78,7 @@ function renderProduct(product, categories) {
     ["挂卡区域", product.location]
   ];
 
-  document.title = "商品详情 - 牛仔布料";
+  document.title = "商品详情 - 西布朗牛仔面料";
   $("#detailCategory").textContent = category ? category.name : "未分类";
   $("#detailCode").textContent = product.code;
   $("#detailSpecs").innerHTML = specs

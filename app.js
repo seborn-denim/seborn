@@ -297,7 +297,7 @@ function renderCompanyLogo(target, logoUrl) {
   }
   target.innerHTML = logoUrl
     ? `<img src="${escapeHtml(logoUrl)}" alt="公司图标" />`
-    : '<span class="company-logo-fallback">D</span>';
+    : '<span class="company-logo-fallback">S</span>';
 }
 
 function salesDepartments() {
