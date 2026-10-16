@@ -10,6 +10,7 @@ const state = {
   storePageSize: 9,
   editingCategoryId: null,
   pendingCompanyLogoFile: null,
+  companyCarouselTimer: null,
   categories: [
     { id: "cat-1", name: "经典靛蓝", sort: 1, enabled: true },
     { id: "cat-2", name: "原色牛仔", sort: 2, enabled: true },
@@ -822,7 +823,30 @@ function switchView(view) {
   refreshIcons();
 }
 
+function stopCompanyCarousel() {
+  if (state.companyCarouselTimer) {
+    window.clearInterval(state.companyCarouselTimer);
+    state.companyCarouselTimer = null;
+  }
+  $("#companyFlipShell").classList.remove("show-back");
+}
+
+function startCompanyCarousel() {
+  stopCompanyCarousel();
+  const shell = $("#companyFlipShell");
+  if (
+    window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    return;
+  }
+  state.companyCarouselTimer = window.setInterval(() => {
+    shell.classList.toggle("show-back");
+  }, 3000);
+}
+
 function showAdmin() {
+  stopCompanyCarousel();
   $("#storeView").classList.add("is-hidden");
   $("#adminApp").classList.remove("is-hidden");
   switchView("products");
@@ -832,6 +856,7 @@ function showStore() {
   $("#adminApp").classList.add("is-hidden");
   $("#storeView").classList.remove("is-hidden");
   renderStore();
+  startCompanyCarousel();
 }
 
 function updateProductFromInput(target) {
@@ -1268,14 +1293,6 @@ function bindEvents() {
     renderStore();
   });
 
-  $("#companyFlipButton").addEventListener("click", () => {
-    $("#companyFlipShell").classList.add("flipped");
-  });
-
-  $("#companyFlipBackButton").addEventListener("click", () => {
-    $("#companyFlipShell").classList.remove("flipped");
-  });
-
   $("#storeCategoryGrid").addEventListener("click", (event) => {
     const button = event.target.closest("[data-store-category]");
     if (!button) {
@@ -1545,6 +1562,16 @@ function bindEvents() {
     state.company.logoUrl = "";
     renderCompanyLogo($("#companyLogoPreview"), "");
     showToast("图标已移除，保存后生效");
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopCompanyCarousel();
+      return;
+    }
+    if (!$("#storeView").classList.contains("is-hidden")) {
+      startCompanyCarousel();
+    }
   });
 }
 

@@ -201,25 +201,28 @@ textarea:focus-visible {
 
 .company-flip-shell {
   min-height: 172px;
-  perspective: 1400px;
+  overflow: hidden;
+  border-radius: 8px;
 }
 
 .company-flip-inner {
+  position: relative;
   display: grid;
   min-height: 172px;
-  transform-style: preserve-3d;
-  transition: transform 620ms cubic-bezier(0.2, 0.72, 0.25, 1);
-}
-
-.company-flip-shell.flipped .company-flip-inner {
-  transform: rotateY(180deg);
 }
 
 .company-face {
   grid-area: 1 / 1;
   min-height: 172px;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  transition:
+    transform 900ms cubic-bezier(0.22, 0.72, 0.25, 1),
+    opacity 900ms cubic-bezier(0.22, 0.72, 0.25, 1);
+  will-change: transform, opacity;
+}
+
+.company-front {
+  transform: translateY(0);
+  opacity: 1;
 }
 
 .company-back {
@@ -233,7 +236,21 @@ textarea:focus-visible {
   background:
     linear-gradient(140deg, rgba(255, 255, 255, 0.07), transparent 55%),
     #162d45;
-  transform: rotateY(180deg);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(105%);
+}
+
+.company-flip-shell.show-back .company-front {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-105%);
+}
+
+.company-flip-shell.show-back .company-back {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .company-back-head {
@@ -247,32 +264,6 @@ textarea:focus-visible {
   margin: 8px 0 0;
   color: #fff;
   font-size: 23px;
-}
-
-.company-flip-button {
-  display: inline-flex;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  margin-top: 12px;
-  padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 7px;
-  color: #e2ebf3;
-  background: rgba(255, 255, 255, 0.08);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.company-flip-button:hover {
-  border-color: rgba(255, 255, 255, 0.34);
-  background: rgba(255, 255, 255, 0.13);
-}
-
-.company-flip-button svg {
-  width: 15px;
-  height: 15px;
 }
 
 .company-back .store-sales-departments {
@@ -2459,10 +2450,6 @@ textarea:focus-visible {
   .company-back-head {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .company-flip-button {
-    width: 100%;
   }
 
   .store-category-grid {
