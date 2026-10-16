@@ -716,37 +716,6 @@ textarea:focus-visible {
   word-break: break-word;
 }
 
-.detail-company {
-  margin-top: 28px;
-  padding-top: 22px;
-  border-top: 1px solid var(--line);
-}
-
-.detail-company h2 {
-  margin: 0 0 13px;
-  font-size: 16px;
-}
-
-.detail-company strong {
-  display: block;
-  color: var(--ink);
-  font-size: 15px;
-}
-
-.detail-company p {
-  margin: 8px 0;
-  color: #5f6b7b;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.detail-company a {
-  color: #8b5a2b;
-  font-size: 14px;
-  font-weight: 750;
-  text-decoration: none;
-}
-
 .detail-not-found {
   display: grid;
   width: min(520px, calc(100% - 40px));

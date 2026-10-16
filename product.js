@@ -62,7 +62,7 @@ function renderThumbnails(product, activeIndex) {
     .join("");
 }
 
-function renderProduct(product, company, categories) {
+function renderProduct(product, categories) {
   const category = categories.find((item) => item.id === product.categoryId);
   const specs = [
     ["商品编号", product.code],
@@ -88,13 +88,6 @@ function renderProduct(product, company, categories) {
       `
     )
     .join("");
-
-  $("#detailCompanyName").textContent = company.name || "";
-  $("#detailCompanyAddress").textContent = company.address || "";
-  $("#detailCompanyPhone").textContent = company.phone || "";
-  $("#detailCompanyPhone").href = company.phone
-    ? `tel:${company.phone.replace(/\s+/g, "")}`
-    : "#";
 
   let activeImage = 0;
   renderMainImage(product, activeImage);
@@ -156,7 +149,7 @@ async function init() {
     return;
   }
 
-  renderProduct(product, data.company, data.categories);
+  renderProduct(product, data.categories);
 }
 
 document.addEventListener("DOMContentLoaded", init);
