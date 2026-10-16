@@ -35,11 +35,14 @@ create table if not exists public.company_profile (
   address text not null default '',
   phone text not null default '',
   logo_url text not null default '',
+  sales_departments jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
 
 alter table public.company_profile
   add column if not exists logo_url text not null default '';
+alter table public.company_profile
+  add column if not exists sales_departments jsonb not null default '[]'::jsonb;
 
 create index if not exists products_status_sort_idx
   on public.products (status, sort, updated_at desc);
@@ -260,13 +263,21 @@ set name = excluded.name,
     sort = excluded.sort,
     fabric_class = excluded.fabric_class;
 
-insert into public.company_profile (id, name, address, phone, logo_url)
+insert into public.company_profile (
+  id,
+  name,
+  address,
+  phone,
+  logo_url,
+  sales_departments
+)
 values (
   'company_profile',
   '示例纺织有限公司',
   '广东省佛山市顺德区示例工业园区 8 号',
   '0757-88888888',
-  ''
+  '',
+  '[]'::jsonb
 )
 on conflict (id) do nothing;
 

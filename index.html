@@ -45,6 +45,7 @@
             <strong id="storeProductCount">0</strong>
             <span>款在售商品</span>
           </div>
+          <div class="store-sales-departments" id="storeSalesDepartments"></div>
         </section>
 
         <section class="store-section-head">
@@ -223,6 +224,20 @@
                     </div>
                   </div>
                 </div>
+
+                <section class="sales-department-editor">
+                  <div class="sales-editor-head">
+                    <div>
+                      <strong>销售部信息</strong>
+                      <span>可添加多个销售部，客户端会展示地址和联系电话。</span>
+                    </div>
+                    <button class="secondary-button" type="button" id="addSalesDepartment">
+                      <i data-lucide="plus"></i>
+                      新增销售部
+                    </button>
+                  </div>
+                  <div class="sales-editor-list" id="salesDepartmentsEditor"></div>
+                </section>
 
                 <div class="form-grid">
                   <label class="field">

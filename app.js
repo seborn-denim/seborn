@@ -292,6 +292,89 @@ function renderCompanyLogo(target, logoUrl) {
     : '<span class="company-logo-fallback">D</span>';
 }
 
+function salesDepartments() {
+  return Array.isArray(state.company.salesDepartments)
+    ? state.company.salesDepartments
+    : [];
+}
+
+function renderStoreSalesDepartments() {
+  const departments = salesDepartments();
+  $("#storeSalesDepartments").innerHTML = departments
+    .filter((department) => department.name || department.address || department.phone)
+    .map(
+      (department) => `
+        <article class="store-sales-department">
+          <h3>${escapeHtml(department.name || "销售部")}</h3>
+          <p>${escapeHtml(department.address || "地址未填写")}</p>
+          <div class="sales-department-contact">
+            ${
+              department.phone
+                ? `<a href="tel:${escapeHtml(
+                    department.phone.replace(/\s+/g, "")
+                  )}">${escapeHtml(department.phone)}</a>`
+                : "<span>电话未填写</span>"
+            }
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderSalesDepartmentsEditor() {
+  const departments = salesDepartments();
+  $("#salesDepartmentsEditor").innerHTML = departments.length
+    ? departments
+        .map(
+          (department, index) => `
+            <div class="sales-editor-row" data-sales-row="${index}">
+              <label class="field">
+                <span>销售部名称</span>
+                <input
+                  type="text"
+                  value="${escapeHtml(department.name || "")}"
+                  data-sales-index="${index}"
+                  data-sales-field="name"
+                  placeholder="例如：华东销售部"
+                />
+              </label>
+              <label class="field">
+                <span>地址</span>
+                <input
+                  type="text"
+                  value="${escapeHtml(department.address || "")}"
+                  data-sales-index="${index}"
+                  data-sales-field="address"
+                  placeholder="填写销售部地址"
+                />
+              </label>
+              <label class="field">
+                <span>联系电话</span>
+                <input
+                  type="tel"
+                  value="${escapeHtml(department.phone || "")}"
+                  data-sales-index="${index}"
+                  data-sales-field="phone"
+                  placeholder="填写联系电话"
+                />
+              </label>
+              <button
+                class="sales-remove-button"
+                type="button"
+                title="删除销售部"
+                data-remove-sales-department="${index}"
+              >
+                <i data-lucide="trash-2"></i>
+              </button>
+            </div>
+          `
+        )
+        .join("")
+    : '<div class="sales-editor-empty">暂无销售部信息，点击“新增销售部”添加。</div>';
+  refreshIcons();
+}
+
 function refreshIcons() {
   if (window.lucide) {
     window.lucide.createIcons();
@@ -369,6 +452,7 @@ function renderStore() {
   $("#storeCompanyInfo").textContent =
     state.company.address || "查看牛仔布料的颜色、织法、成分、布宽、克重和挂卡区域。";
   renderCompanyLogo($("#storeCompanyLogo"), state.company.logoUrl || "");
+  renderStoreSalesDepartments();
   $("#storeProductCount").textContent = products.length;
   $("#storeGrid").innerHTML = pageProducts.map(renderStoreProduct).join("");
   $("#storeEmpty").hidden = pageProducts.length > 0;
@@ -618,6 +702,7 @@ function renderCompany() {
     $("#companyLogoPreview"),
     state.company.logoUrl || ""
   );
+  renderSalesDepartmentsEditor();
 }
 
 function switchView(view) {
@@ -944,7 +1029,12 @@ async function saveCompany(event) {
     name: $("#companyName").value.trim(),
     address: $("#companyAddress").value.trim(),
     phone: $("#companyPhone").value.trim(),
-    logoUrl: state.company.logoUrl || ""
+    logoUrl: state.company.logoUrl || "",
+    salesDepartments: salesDepartments().map((department) => ({
+      name: String(department.name || "").trim(),
+      address: String(department.address || "").trim(),
+      phone: String(department.phone || "").trim()
+    }))
   };
   if (!company.name || !company.address || !company.phone) {
     showToast("请填写公司名称、地址和联系电话。");
@@ -1211,6 +1301,49 @@ function bindEvents() {
 
   $("#categoryForm").addEventListener("submit", saveCategory);
   $("#companyForm").addEventListener("submit", saveCompany);
+  $("#addSalesDepartment").addEventListener("click", () => {
+    if (!Array.isArray(state.company.salesDepartments)) {
+      state.company.salesDepartments = [];
+    }
+    state.company.salesDepartments.push({
+      name: "",
+      address: "",
+      phone: ""
+    });
+    renderSalesDepartmentsEditor();
+    const rows = $$(".sales-editor-row", $("#salesDepartmentsEditor"));
+    const lastRow = rows[rows.length - 1];
+    const firstInput = lastRow && lastRow.querySelector("input");
+    if (firstInput) {
+      firstInput.focus();
+    }
+  });
+
+  $("#salesDepartmentsEditor").addEventListener("input", (event) => {
+    const input = event.target.closest("[data-sales-index][data-sales-field]");
+    if (!input) {
+      return;
+    }
+    const index = Number(input.dataset.salesIndex);
+    const field = input.dataset.salesField;
+    if (!state.company.salesDepartments[index]) {
+      return;
+    }
+    state.company.salesDepartments[index][field] = input.value;
+  });
+
+  $("#salesDepartmentsEditor").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remove-sales-department]");
+    if (!button) {
+      return;
+    }
+    state.company.salesDepartments.splice(
+      Number(button.dataset.removeSalesDepartment),
+      1
+    );
+    renderSalesDepartmentsEditor();
+  });
+
   $("#companyLogoInput").addEventListener("change", async (event) => {
     const file = event.target.files && event.target.files[0];
     event.target.value = "";

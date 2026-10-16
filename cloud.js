@@ -61,7 +61,14 @@
       name: row && row.name ? row.name : "",
       address: row && row.address ? row.address : "",
       phone: row && row.phone ? row.phone : "",
-      logoUrl: row && row.logo_url ? row.logo_url : ""
+      logoUrl: row && row.logo_url ? row.logo_url : "",
+      salesDepartments: Array.isArray(row && row.sales_departments)
+        ? row.sales_departments.map((department) => ({
+            name: department.name || "",
+            address: department.address || "",
+            phone: department.phone || ""
+          }))
+        : []
     };
   }
 
@@ -229,6 +236,9 @@
           address: company.address,
           phone: company.phone,
           logo_url: company.logoUrl || "",
+          sales_departments: Array.isArray(company.salesDepartments)
+            ? company.salesDepartments
+            : [],
           updated_at: new Date().toISOString()
         },
         { onConflict: "id" }
