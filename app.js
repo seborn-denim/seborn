@@ -497,6 +497,14 @@ function renderStore() {
         : publicProducts({ categoryId: selectedCategory.id })
       : [];
 
+  const companyFlipShell = $("#companyFlipShell");
+  companyFlipShell.classList.toggle("is-hidden", showProducts);
+  if (showProducts) {
+    stopCompanyCarousel();
+  } else {
+    startCompanyCarousel();
+  }
+
   $("#storeProductCount").textContent = publishedProducts.length;
   $("#storeCategoryGrid").innerHTML = categories
     .map((category) => {
@@ -891,7 +899,6 @@ function showStore() {
   $("#adminApp").classList.add("is-hidden");
   $("#storeView").classList.remove("is-hidden");
   renderStore();
-  startCompanyCarousel();
 }
 
 function updateProductFromInput(target) {
