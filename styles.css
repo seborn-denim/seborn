@@ -2530,24 +2530,44 @@ textarea:focus-visible {
   }
 
   .store-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .store-product-image {
-    height: 230px;
+    height: 92px;
   }
 
   .store-product-body {
-    padding: 16px;
+    padding: 7px;
   }
 
   .store-product-info {
-    grid-template-columns: 1fr;
-    gap: 0;
+    display: none;
   }
 
   .store-product-info div:last-child {
     grid-column: auto;
+  }
+
+  .store-product-title h3 {
+    display: none;
+  }
+
+  .store-product-title > span {
+    overflow: hidden;
+    font-size: 10px;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .store-product-tags {
+    display: none;
+  }
+
+  .store-product-card {
+    border-radius: 7px;
   }
 
   .store-pagination button {

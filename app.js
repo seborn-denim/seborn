@@ -551,10 +551,7 @@ function renderStore() {
     return;
   }
 
-  const totalPages = Math.max(1, Math.ceil(products.length / state.storePageSize));
-  state.storePage = Math.min(state.storePage, totalPages);
-  const start = (state.storePage - 1) * state.storePageSize;
-  const pageProducts = products.slice(start, start + state.storePageSize);
+  const pageProducts = products;
 
   $("#storeSectionTitle").textContent = searchActive
     ? "搜索结果"
@@ -568,15 +565,7 @@ function renderStore() {
     ? "没有找到匹配商品。"
     : "该分类暂无已上架商品。";
 
-  $("#storePagination").innerHTML =
-    totalPages > 1
-      ? Array.from({ length: totalPages }, (_, index) => index + 1)
-          .map(
-            (page) =>
-              `<button class="${page === state.storePage ? "active" : ""}" data-store-page="${page}">${page}</button>`
-          )
-          .join("")
-      : "";
+  $("#storePagination").innerHTML = "";
   refreshIcons();
 }
 
