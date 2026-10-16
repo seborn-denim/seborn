@@ -743,9 +743,17 @@ function renderAdminProductCard(product) {
       <div class="product-card-footer">
         <span>最近更新：${escapeHtml(product.updatedAt)}</span>
         <div>
-          <button class="secondary-button" type="button" data-archive-product="${product.id}">
-            <i data-lucide="archive"></i>
-            归档
+          ${
+            product.status === "archived"
+              ? ""
+              : `<button class="secondary-button" type="button" data-archive-product="${product.id}">
+                  <i data-lucide="archive"></i>
+                  归档
+                </button>`
+          }
+          <button class="secondary-button danger-button" type="button" data-delete-product="${product.id}">
+            <i data-lucide="trash-2"></i>
+            ${product.status === "archived" ? "清除记录" : "删除"}
           </button>
           <button class="primary-button" type="button" data-save-product="${product.id}">
             <i data-lucide="save"></i>
@@ -976,6 +984,37 @@ async function archiveProduct(productId) {
   renderAdminProducts();
   renderStore();
   showToast("商品已归档");
+}
+
+async function deleteProduct(productId) {
+  const product = state.products.find((item) => item.id === productId);
+  if (!product) {
+    return;
+  }
+
+  const isArchived = product.status === "archived";
+  const actionName = isArchived ? "清除记录" : "删除";
+  const message = isArchived
+    ? `确定清除商品“${product.code}”的归档记录吗？清除后不可恢复。`
+    : `确定删除商品“${product.code}”吗？删除后不可恢复。`;
+  if (!window.confirm(message)) {
+    return;
+  }
+
+  if (cloudConfigured() && !productId.startsWith("p-")) {
+    try {
+      await window.denimCloud.deleteProduct(productId, product.images);
+    } catch (error) {
+      showToast(`云端${actionName}失败：${error.message || "请检查管理员权限"}`);
+      return;
+    }
+  }
+
+  state.products = state.products.filter((item) => item.id !== productId);
+  persistState();
+  renderAdminProducts();
+  renderStore();
+  showToast(isArchived ? "归档记录已清除" : "商品已删除");
 }
 
 async function deleteCategory(categoryId) {
@@ -1415,6 +1454,7 @@ function bindEvents() {
   $("#productEditorGrid").addEventListener("click", (event) => {
     const saveButton = event.target.closest("[data-save-product]");
     const archiveButton = event.target.closest("[data-archive-product]");
+    const deleteButton = event.target.closest("[data-delete-product]");
     const removeButton = event.target.closest("[data-remove-image]");
     const coverButton = event.target.closest("[data-set-cover]");
 
@@ -1424,6 +1464,10 @@ function bindEvents() {
     }
     if (archiveButton) {
       archiveProduct(archiveButton.dataset.archiveProduct);
+      return;
+    }
+    if (deleteButton) {
+      deleteProduct(deleteButton.dataset.deleteProduct);
       return;
     }
     if (removeButton) {

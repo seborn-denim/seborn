@@ -285,6 +285,46 @@
     return mapProduct(data);
   }
 
+  async function deleteProduct(id, images) {
+    if (!configured) {
+      return null;
+    }
+    const supabaseClient = await ensureSdk();
+    const { data, error } = await supabaseClient
+      .from("products")
+      .delete()
+      .eq("id", id)
+      .select("id")
+      .single();
+    if (error) {
+      throw error;
+    }
+
+    const marker = `/storage/v1/object/public/${config.imageBucket}/`;
+    const paths = (images || [])
+      .map((url) => {
+        const index = url.indexOf(marker);
+        return index === -1
+          ? ""
+          : decodeURIComponent(url.slice(index + marker.length));
+      })
+      .filter(Boolean);
+
+    if (paths.length) {
+      try {
+        const result = await supabaseClient.storage
+          .from(config.imageBucket)
+          .remove(paths);
+        if (result.error) {
+          throw result.error;
+        }
+      } catch (storageError) {
+        console.warn("Product deleted, but image cleanup failed.", storageError);
+      }
+    }
+    return data;
+  }
+
   async function saveCategory(category) {
     if (!configured) {
       return null;
@@ -456,6 +496,7 @@
     getSession,
     saveProduct,
     archiveProduct,
+    deleteProduct,
     saveCategory,
     deleteCategory,
     saveCompany,
