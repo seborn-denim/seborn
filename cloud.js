@@ -108,7 +108,10 @@
     }
     const [categoriesResult, productsResult, companyResult] = await Promise.all([
       client.from("categories").select("*").order("sort", { ascending: true }),
-      client.from("products").select("*").order("sort", { ascending: true }),
+      client
+        .from("products")
+        .select("*")
+        .order("updated_at", { ascending: false }),
       client.from("company_profile").select("*").eq("id", "company_profile").maybeSingle()
     ]);
     const error =

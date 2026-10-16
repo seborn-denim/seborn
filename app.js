@@ -417,8 +417,7 @@ function publicProducts(options) {
       }
       const searchable = `${product.name} ${product.code}`.toLowerCase();
       return !keyword || searchable.includes(keyword);
-    })
-    .sort((a, b) => a.sort - b.sort);
+    });
 }
 
 function renderStoreProduct(product) {
@@ -575,8 +574,7 @@ function filteredAdminProducts() {
         state.statusFilter === "all" || product.status === state.statusFilter;
       const searchable = `${product.name} ${product.code}`.toLowerCase();
       return matchesStatus && (!keyword || searchable.includes(keyword));
-    })
-    .sort((a, b) => a.sort - b.sort);
+    });
 }
 
 function categoryOptions(selectedId) {
@@ -722,10 +720,6 @@ function renderAdminProductCard(product) {
           <label class="field">
             <span>挂卡区域</span>
             <input data-product-id="${product.id}" data-field="location" type="text" value="${escapeHtml(product.location)}" />
-          </label>
-          <label class="field">
-            <span>排序</span>
-            <input data-product-id="${product.id}" data-field="sort" type="number" min="0" value="${product.sort}" />
           </label>
           <label class="field">
             <span>商品状态</span>
@@ -890,9 +884,7 @@ function updateProductFromInput(target) {
     return;
   }
 
-  if (field === "sort") {
-    product[field] = Number(target.value) || 0;
-  } else if (field === "code") {
+  if (field === "code") {
     product[field] = target.value.toUpperCase();
   } else {
     product[field] = target.value;
@@ -1029,7 +1021,6 @@ function addProduct() {
     weight: "",
     location: "",
     status: "draft",
-    sort: state.products.length + 1,
     fabricClass: "fabric-indigo",
     images: [],
     updatedAt: "尚未保存"
