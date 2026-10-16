@@ -5,6 +5,7 @@ const state = {
   statusFilter: "all",
   productSearch: "",
   storeSearch: "",
+  selectedCategoryId: "",
   storePage: 1,
   storePageSize: 9,
   editingCategoryId: null,
@@ -299,11 +300,13 @@ function salesDepartments() {
 }
 
 function renderStoreSalesDepartments() {
-  const departments = salesDepartments();
-  $("#storeSalesDepartments").innerHTML = departments
-    .filter((department) => department.name || department.address || department.phone)
-    .map(
-      (department) => `
+  const departments = salesDepartments().filter(
+    (department) => department.name || department.address || department.phone
+  );
+  $("#storeSalesDepartments").innerHTML = departments.length
+    ? departments
+        .map(
+          (department) => `
         <article class="store-sales-department">
           <h3>${escapeHtml(department.name || "销售部")}</h3>
           <p>${escapeHtml(department.address || "地址未填写")}</p>
@@ -318,8 +321,9 @@ function renderStoreSalesDepartments() {
           </div>
         </article>
       `
-    )
-    .join("");
+        )
+        .join("")
+    : '<div class="sales-department-empty">暂无销售部信息</div>';
 }
 
 function renderSalesDepartmentsEditor() {
@@ -394,11 +398,18 @@ function categoryName(categoryId) {
   return category ? category.name : "未分类";
 }
 
-function publicProducts() {
+function publicProducts(options) {
+  const settings = options || {};
   const keyword = state.storeSearch.trim().toLowerCase();
   return state.products
     .filter((product) => {
       if (product.status !== "published") {
+        return false;
+      }
+      if (
+        settings.categoryId &&
+        product.categoryId !== settings.categoryId
+      ) {
         return false;
       }
       const searchable = `${product.name} ${product.code}`.toLowerCase();
@@ -442,20 +453,104 @@ function renderStoreProduct(product) {
 }
 
 function renderStore() {
-  const products = publicProducts();
-  const totalPages = Math.max(1, Math.ceil(products.length / state.storePageSize));
-  state.storePage = Math.min(state.storePage, totalPages);
-  const start = (state.storePage - 1) * state.storePageSize;
-  const pageProducts = products.slice(start, start + state.storePageSize);
-
   $("#storeCompanyName").textContent = state.company.name || "牛仔布料商品目录";
   $("#storeCompanyInfo").textContent =
     state.company.address || "查看牛仔布料的颜色、织法、成分、布宽、克重和挂卡区域。";
   renderCompanyLogo($("#storeCompanyLogo"), state.company.logoUrl || "");
   renderStoreSalesDepartments();
-  $("#storeProductCount").textContent = products.length;
+
+  const publishedProducts = publicProducts();
+  const enabledCategories = state.categories
+    .filter((category) => category.enabled)
+    .sort((a, b) => a.sort - b.sort);
+  const enabledCategoryIds = new Set(
+    enabledCategories.map((category) => category.id)
+  );
+  const uncategorizedCount = publishedProducts.filter(
+    (product) => !enabledCategoryIds.has(product.categoryId)
+  ).length;
+  const categories = enabledCategories.concat(
+    uncategorizedCount
+      ? [{ id: "__uncategorized__", name: "未分类", sort: 9999 }]
+      : []
+  );
+  const searchActive = Boolean(state.storeSearch.trim());
+  const selectedCategory = categories.find(
+    (category) => category.id === state.selectedCategoryId
+  );
+  const showProducts = searchActive || Boolean(selectedCategory);
+  const products = searchActive
+    ? publicProducts()
+    : selectedCategory
+      ? selectedCategory.id === "__uncategorized__"
+        ? publicProducts().filter(
+            (product) => !enabledCategoryIds.has(product.categoryId)
+          )
+        : publicProducts({ categoryId: selectedCategory.id })
+      : [];
+
+  $("#storeProductCount").textContent = publishedProducts.length;
+  $("#storeCategoryGrid").innerHTML = categories
+    .map((category) => {
+      const count =
+        category.id === "__uncategorized__"
+          ? uncategorizedCount
+          : state.products.filter(
+              (product) =>
+                product.status === "published" &&
+                product.categoryId === category.id
+            ).length;
+      return `
+        <button
+          class="store-category-card"
+          type="button"
+          data-store-category="${category.id}"
+        >
+          <div>
+            <h3>${escapeHtml(category.name)}</h3>
+            <p>点击查看该分类下的商品</p>
+          </div>
+          <div class="store-category-count">
+            ${count}
+            <span>款商品</span>
+          </div>
+        </button>
+      `;
+    })
+    .join("");
+
+  $("#storeCategoryGrid").classList.toggle("is-hidden", showProducts);
+  $("#storeGrid").classList.toggle("is-hidden", !showProducts);
+  $("#backToCategoriesButton").classList.toggle("is-hidden", !showProducts);
+
+  if (!showProducts) {
+    $("#storeSectionTitle").textContent = "商品分类";
+    $("#storeSectionSubtitle").textContent =
+      "先选择商品分类，再查看该分类下的商品。";
+    $("#storeGrid").innerHTML = "";
+    $("#storeEmpty").textContent = "暂无商品分类。";
+    $("#storeEmpty").hidden = categories.length > 0;
+    $("#storePagination").innerHTML = "";
+    refreshIcons();
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(products.length / state.storePageSize));
+  state.storePage = Math.min(state.storePage, totalPages);
+  const start = (state.storePage - 1) * state.storePageSize;
+  const pageProducts = products.slice(start, start + state.storePageSize);
+
+  $("#storeSectionTitle").textContent = searchActive
+    ? "搜索结果"
+    : selectedCategory.name;
+  $("#storeSectionSubtitle").textContent = searchActive
+    ? `找到 ${products.length} 款匹配商品。`
+    : `该分类共有 ${products.length} 款商品。`;
   $("#storeGrid").innerHTML = pageProducts.map(renderStoreProduct).join("");
   $("#storeEmpty").hidden = pageProducts.length > 0;
+  $("#storeEmpty").textContent = searchActive
+    ? "没有找到匹配商品。"
+    : "该分类暂无已上架商品。";
 
   $("#storePagination").innerHTML =
     totalPages > 1
@@ -1168,6 +1263,37 @@ function bindEvents() {
 
   $("#storeSearch").addEventListener("input", (event) => {
     state.storeSearch = event.target.value;
+    state.selectedCategoryId = "";
+    state.storePage = 1;
+    renderStore();
+  });
+
+  $("#companyFlipButton").addEventListener("click", () => {
+    $("#companyFlipShell").classList.add("flipped");
+  });
+
+  $("#companyFlipBackButton").addEventListener("click", () => {
+    $("#companyFlipShell").classList.remove("flipped");
+  });
+
+  $("#storeCategoryGrid").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-store-category]");
+    if (!button) {
+      return;
+    }
+    state.selectedCategoryId = button.dataset.storeCategory;
+    state.storeSearch = "";
+    state.storePage = 1;
+    $("#storeSearch").value = "";
+    renderStore();
+    $(".store-section-head").scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  });
+
+  $("#backToCategoriesButton").addEventListener("click", () => {
+    state.selectedCategoryId = "";
     state.storePage = 1;
     renderStore();
   });

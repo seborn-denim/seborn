@@ -30,31 +30,57 @@
       </header>
 
       <main class="store-content">
-        <section class="store-company">
-          <div class="store-company-main">
-            <div class="store-company-logo" id="storeCompanyLogo">
-              <span class="company-logo-fallback">D</span>
-            </div>
-            <div class="store-company-copy">
-              <span class="store-eyebrow">PRODUCT CATALOG</span>
-              <h1 id="storeCompanyName">牛仔布料商品目录</h1>
-              <p id="storeCompanyInfo">查看牛仔布料的颜色、织法、成分、布宽、克重和挂卡区域。</p>
-            </div>
+        <div class="company-flip-shell" id="companyFlipShell">
+          <div class="company-flip-inner">
+            <section class="store-company company-face company-front">
+              <div class="store-company-main">
+                <div class="store-company-logo" id="storeCompanyLogo">
+                  <span class="company-logo-fallback">D</span>
+                </div>
+                <div class="store-company-copy">
+                  <span class="store-eyebrow">PRODUCT CATALOG</span>
+                  <h1 id="storeCompanyName">牛仔布料商品目录</h1>
+                  <p id="storeCompanyInfo">查看牛仔布料的颜色、织法、成分、布宽、克重和挂卡区域。</p>
+                </div>
+              </div>
+              <div class="store-summary">
+                <strong id="storeProductCount">0</strong>
+                <span>款在售商品</span>
+                <button class="company-flip-button" id="companyFlipButton" type="button">
+                  <i data-lucide="refresh-cw"></i>
+                  销售部信息
+                </button>
+              </div>
+            </section>
+
+            <section class="company-face company-back">
+              <div class="company-back-head">
+                <div>
+                  <span class="store-eyebrow">SALES OFFICES</span>
+                  <h2>销售部信息</h2>
+                </div>
+                <button class="company-flip-button" id="companyFlipBackButton" type="button">
+                  <i data-lucide="rotate-ccw"></i>
+                  返回公司信息
+                </button>
+              </div>
+              <div class="store-sales-departments" id="storeSalesDepartments"></div>
+            </section>
           </div>
-          <div class="store-summary">
-            <strong id="storeProductCount">0</strong>
-            <span>款在售商品</span>
-          </div>
-          <div class="store-sales-departments" id="storeSalesDepartments"></div>
-        </section>
+        </div>
 
         <section class="store-section-head">
           <div>
-            <h2>全部商品</h2>
-            <p>按九宫格展示已上架商品信息。</p>
+            <h2 id="storeSectionTitle">商品分类</h2>
+            <p id="storeSectionSubtitle">先选择商品分类，再查看该分类下的商品。</p>
           </div>
+          <button class="secondary-button is-hidden" id="backToCategoriesButton" type="button">
+            <i data-lucide="arrow-left"></i>
+            返回分类
+          </button>
         </section>
 
+        <section class="store-category-grid" id="storeCategoryGrid"></section>
         <section class="store-grid" id="storeGrid"></section>
         <div class="store-empty" id="storeEmpty" hidden>没有找到匹配商品。</div>
 
