@@ -1051,6 +1051,17 @@ textarea:focus-visible {
   height: 15px;
 }
 
+.icon-button.danger-icon {
+  color: var(--danger);
+  border-color: #efc4bf;
+}
+
+.icon-button.danger-icon:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: #dd9189;
+  background: var(--danger-soft);
+}
+
 .content {
   padding: 28px;
 }

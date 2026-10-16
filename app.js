@@ -683,9 +683,14 @@ function renderCategories() {
             ></button>
           </td>
           <td class="align-right">
-            <button class="icon-button small" title="编辑分类" data-edit-category="${category.id}">
-              <i data-lucide="pencil"></i>
-            </button>
+            <div class="row-actions">
+              <button class="icon-button small" title="编辑分类" data-edit-category="${category.id}">
+                <i data-lucide="pencil"></i>
+              </button>
+              <button class="icon-button small danger-icon" title="删除分类" data-delete-category="${category.id}">
+                <i data-lucide="trash-2"></i>
+              </button>
+            </div>
           </td>
         </tr>
       `;
@@ -825,6 +830,41 @@ async function archiveProduct(productId) {
   renderAdminProducts();
   renderStore();
   showToast("商品已归档");
+}
+
+async function deleteCategory(categoryId) {
+  const category = state.categories.find((item) => item.id === categoryId);
+  if (!category) {
+    return;
+  }
+
+  const productCount = state.products.filter(
+    (product) => product.categoryId === categoryId
+  ).length;
+  if (productCount > 0) {
+    showToast(`该分类下还有 ${productCount} 个商品，不能删除。`);
+    return;
+  }
+
+  if (!window.confirm(`确定删除分类“${category.name}”吗？`)) {
+    return;
+  }
+
+  if (cloudConfigured()) {
+    try {
+      await window.denimCloud.deleteCategory(categoryId);
+    } catch (error) {
+      showToast(`云端删除失败：${error.message || "请检查管理员权限"}`);
+      return;
+    }
+  }
+
+  state.categories = state.categories.filter((item) => item.id !== categoryId);
+  persistState();
+  renderCategories();
+  renderAdminProducts();
+  renderStore();
+  showToast("分类已删除");
 }
 
 function addProduct() {
@@ -1250,6 +1290,7 @@ function bindEvents() {
   $("#categoriesBody").addEventListener("click", async (event) => {
     const toggleButton = event.target.closest("[data-toggle-category]");
     const editButton = event.target.closest("[data-edit-category]");
+    const deleteButton = event.target.closest("[data-delete-category]");
     if (toggleButton) {
       const category = state.categories.find(
         (item) => item.id === toggleButton.dataset.toggleCategory
@@ -1282,6 +1323,10 @@ function bindEvents() {
     }
     if (editButton) {
       openCategoryModal(editButton.dataset.editCategory);
+      return;
+    }
+    if (deleteButton) {
+      await deleteCategory(deleteButton.dataset.deleteCategory);
     }
   });
 

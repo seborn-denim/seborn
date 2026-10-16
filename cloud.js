@@ -223,6 +223,22 @@
     return mapCategory(data);
   }
 
+  async function deleteCategory(id) {
+    if (!configured) {
+      return null;
+    }
+    const { data, error } = await client
+      .from("categories")
+      .delete()
+      .eq("id", id)
+      .select("id")
+      .single();
+    if (error) {
+      throw error;
+    }
+    return data;
+  }
+
   async function saveCompany(company) {
     if (!configured) {
       return null;
@@ -338,6 +354,7 @@
     saveProduct,
     archiveProduct,
     saveCategory,
+    deleteCategory,
     saveCompany,
     uploadProductImage,
     uploadCompanyLogo,
