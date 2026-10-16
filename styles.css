@@ -861,15 +861,8 @@ textarea:focus-visible {
   font-weight: 750;
 }
 
-.detail-info h1 {
-  margin: 18px 0 0;
-  color: var(--ink);
-  font-size: 30px;
-  line-height: 1.35;
-}
-
 .detail-code {
-  margin-top: 9px;
+  margin-top: 18px;
   color: #758194;
   font-size: 13px;
   font-weight: 700;

@@ -74,9 +74,8 @@ function renderProduct(product, categories) {
     ["挂卡区域", product.location]
   ];
 
-  document.title = `${product.name} - 牛仔布料`;
+  document.title = "商品详情 - 牛仔布料";
   $("#detailCategory").textContent = category ? category.name : "未分类";
-  $("#detailName").textContent = product.name;
   $("#detailCode").textContent = product.code;
   $("#detailSpecs").innerHTML = specs
     .map(
