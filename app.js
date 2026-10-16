@@ -482,7 +482,7 @@ function filteredAdminProducts() {
 }
 
 function categoryOptions(selectedId) {
-  return state.categories
+  const options = state.categories
     .filter((category) => category.enabled || category.id === selectedId)
     .sort((a, b) => a.sort - b.sort)
     .map(
@@ -495,6 +495,10 @@ function categoryOptions(selectedId) {
       `
     )
     .join("");
+  return `
+    <option value="" ${selectedId ? "" : "selected"}>未分类</option>
+    ${options}
+  `;
 }
 
 function statusOptions(selectedStatus) {
@@ -759,9 +763,6 @@ function validateProduct(product) {
   if (!product.code.trim()) {
     return "请填写商品编号。";
   }
-  if (!product.categoryId) {
-    return "请选择商品分类。";
-  }
   if (!product.images.length) {
     return "请至少上传一张商品图片。";
   }
@@ -841,12 +842,11 @@ async function deleteCategory(categoryId) {
   const productCount = state.products.filter(
     (product) => product.categoryId === categoryId
   ).length;
-  if (productCount > 0) {
-    showToast(`该分类下还有 ${productCount} 个商品，不能删除。`);
-    return;
-  }
-
-  if (!window.confirm(`确定删除分类“${category.name}”吗？`)) {
+  const message =
+    productCount > 0
+      ? `分类“${category.name}”下有 ${productCount} 个商品。删除后，这些商品会变为“未分类”，确定继续吗？`
+      : `确定删除分类“${category.name}”吗？`;
+  if (!window.confirm(message)) {
     return;
   }
 
@@ -859,6 +859,11 @@ async function deleteCategory(categoryId) {
     }
   }
 
+  state.products.forEach((product) => {
+    if (product.categoryId === categoryId) {
+      product.categoryId = "";
+    }
+  });
   state.categories = state.categories.filter((item) => item.id !== categoryId);
   persistState();
   renderCategories();

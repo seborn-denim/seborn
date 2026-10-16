@@ -76,7 +76,7 @@
     return {
       name: product.name.trim(),
       code: product.code.trim().toUpperCase(),
-      category_id: product.categoryId,
+      category_id: product.categoryId || null,
       color: product.color || "",
       weave: product.weave || "",
       composition: product.composition || "",
@@ -226,6 +226,16 @@
   async function deleteCategory(id) {
     if (!configured) {
       return null;
+    }
+    const { error: updateError } = await client
+      .from("products")
+      .update({
+        category_id: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("category_id", id);
+    if (updateError) {
+      throw updateError;
     }
     const { data, error } = await client
       .from("categories")
