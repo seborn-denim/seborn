@@ -129,6 +129,11 @@ async function init() {
   ) {
     try {
       product = await window.denimCloud.fetchProduct(productId);
+    } catch (error) {
+      console.warn("Unable to load product from Supabase.", error);
+      product = data.products.find((item) => item.id === productId) || null;
+    }
+    try {
       const catalog = await window.denimCloud.fetchCatalog();
       if (catalog) {
         data = {
@@ -140,15 +145,14 @@ async function init() {
         };
       }
     } catch (error) {
-      console.warn("Unable to load product from Supabase.", error);
-      product = data.products.find((item) => item.id === productId) || null;
+      console.warn("Unable to load catalog extras from Supabase.", error);
     }
   } else if (productId) {
     product = data.products.find((item) => item.id === productId);
   }
 
-  if (!product || product.status !== "published") {
-    $("#detailNotFound").hidden = false;
+  if (!product) {
+    window.location.replace("index.html");
     return;
   }
 
