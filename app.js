@@ -11,6 +11,8 @@ const state = {
   editingCategoryId: null,
   pendingCompanyLogoFile: null,
   companyCarouselTimer: null,
+  companyCarouselAnimationTimer: null,
+  companyCarouselShowingBack: false,
   categories: [
     { id: "cat-1", name: "经典靛蓝", sort: 1, enabled: true },
     { id: "cat-2", name: "原色牛仔", sort: 2, enabled: true },
@@ -828,7 +830,16 @@ function stopCompanyCarousel() {
     window.clearInterval(state.companyCarouselTimer);
     state.companyCarouselTimer = null;
   }
-  $("#companyFlipShell").classList.remove("show-back");
+  if (state.companyCarouselAnimationTimer) {
+    window.clearTimeout(state.companyCarouselAnimationTimer);
+    state.companyCarouselAnimationTimer = null;
+  }
+  state.companyCarouselShowingBack = false;
+  $("#companyFlipShell").classList.remove(
+    "show-back",
+    "animating-to-back",
+    "animating-to-front"
+  );
 }
 
 function startCompanyCarousel() {
@@ -841,7 +852,23 @@ function startCompanyCarousel() {
     return;
   }
   state.companyCarouselTimer = window.setInterval(() => {
-    shell.classList.toggle("show-back");
+    if (!state.companyCarouselShowingBack) {
+      shell.classList.add("animating-to-back");
+      state.companyCarouselAnimationTimer = window.setTimeout(() => {
+        shell.classList.remove("animating-to-back");
+        shell.classList.add("show-back");
+        state.companyCarouselShowingBack = true;
+        state.companyCarouselAnimationTimer = null;
+      }, 900);
+      return;
+    }
+
+    shell.classList.add("animating-to-front");
+    state.companyCarouselAnimationTimer = window.setTimeout(() => {
+      shell.classList.remove("animating-to-front", "show-back");
+      state.companyCarouselShowingBack = false;
+      state.companyCarouselAnimationTimer = null;
+    }, 900);
   }, 3000);
 }
 
