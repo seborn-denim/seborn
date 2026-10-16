@@ -1,11 +1,91 @@
 (function () {
   const config = window.SUPABASE_CONFIG || {};
-  const configured = Boolean(
-    config.url && config.anonKey && window.supabase && window.supabase.createClient
-  );
-  const client = configured
-    ? window.supabase.createClient(config.url, config.anonKey)
-    : null;
+  const configured = Boolean(config.url && config.anonKey);
+  let client = null;
+  let sdkPromise = null;
+
+  function ensureSdk() {
+    if (client) {
+      return Promise.resolve(client);
+    }
+    if (sdkPromise) {
+      return sdkPromise;
+    }
+    sdkPromise = new Promise((resolve, reject) => {
+      const createClient = () => {
+        if (!window.supabase || !window.supabase.createClient) {
+          reject(new Error("Supabase 客户端加载失败"));
+          return;
+        }
+        client = window.supabase.createClient(config.url, config.anonKey);
+        resolve(client);
+      };
+
+      if (window.supabase && window.supabase.createClient) {
+        createClient();
+        return;
+      }
+
+      let script = document.querySelector("script[data-supabase-sdk]");
+      if (script) {
+        script.addEventListener("load", createClient, { once: true });
+        script.addEventListener(
+          "error",
+          () => reject(new Error("Supabase 客户端加载失败")),
+          { once: true }
+        );
+        return;
+      }
+
+      script = document.createElement("script");
+      script.src = "./vendor/supabase/supabase.js";
+      script.dataset.supabaseSdk = "true";
+      script.addEventListener("load", createClient, { once: true });
+      script.addEventListener(
+        "error",
+        () => reject(new Error("Supabase 客户端加载失败")),
+        { once: true }
+      );
+      document.head.appendChild(script);
+    });
+    return sdkPromise;
+  }
+
+  async function restHeaders() {
+    let accessToken = config.anonKey;
+    if (client) {
+      try {
+        const { data } = await client.auth.getSession();
+        if (data && data.session && data.session.access_token) {
+          accessToken = data.session.access_token;
+        }
+      } catch (error) {
+        accessToken = config.anonKey;
+      }
+    }
+    return {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json"
+    };
+  }
+
+  async function restRequest(path, options) {
+    const settings = options || {};
+    const response = await fetch(`${config.url}/rest/v1/${path}`, {
+      method: settings.method || "GET",
+      headers: Object.assign({}, await restHeaders(), settings.headers || {}),
+      body: settings.body
+    });
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || `Supabase 请求失败：${response.status}`);
+    }
+    if (response.status === 204) {
+      return null;
+    }
+    return response.json();
+  }
 
   function formatDate(value) {
     if (!value) {
@@ -49,7 +129,6 @@
       weight: row.weight || "",
       location: row.location || "",
       status: row.status || "draft",
-      sort: Number(row.sort) || 0,
       fabricClass: row.fabric_class || "fabric-indigo",
       images: Array.isArray(row.images) ? row.images : [],
       updatedAt: formatDate(row.updated_at)
@@ -74,9 +153,8 @@
 
   function productRow(product) {
     const code = product.code.trim().toUpperCase();
-    const name = (product.name || code || "未命名商品").trim();
     return {
-      name,
+      name: (product.name || code || "未命名商品").trim(),
       code,
       category_id: product.categoryId || null,
       color: product.color || "",
@@ -86,7 +164,6 @@
       weight: product.weight || "",
       location: product.location || "",
       status: product.status || "draft",
-      sort: Number(product.sort) || 0,
       fabric_class: product.fabricClass || "fabric-indigo",
       images: product.images || [],
       updated_at: new Date().toISOString()
@@ -106,23 +183,15 @@
     if (!configured) {
       return null;
     }
-    const [categoriesResult, productsResult, companyResult] = await Promise.all([
-      client.from("categories").select("*").order("sort", { ascending: true }),
-      client
-        .from("products")
-        .select("*")
-        .order("updated_at", { ascending: false }),
-      client.from("company_profile").select("*").eq("id", "company_profile").maybeSingle()
+    const [categories, products, companyRows] = await Promise.all([
+      restRequest("categories?select=*&order=sort.asc"),
+      restRequest("products?select=*&order=updated_at.desc"),
+      restRequest("company_profile?select=*&id=eq.company_profile&limit=1")
     ]);
-    const error =
-      categoriesResult.error || productsResult.error || companyResult.error;
-    if (error) {
-      throw error;
-    }
     return {
-      categories: (categoriesResult.data || []).map(mapCategory),
-      products: (productsResult.data || []).map(mapProduct),
-      company: mapCompany(companyResult.data)
+      categories: (categories || []).map(mapCategory),
+      products: (products || []).map(mapProduct),
+      company: mapCompany((companyRows || [])[0] || null)
     };
   }
 
@@ -130,22 +199,26 @@
     if (!configured || !id) {
       return null;
     }
-    const { data, error } = await client
-      .from("products")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-    if (error) {
-      throw error;
+    const rows = await restRequest(
+      `products?select=*&id=eq.${encodeURIComponent(id)}&limit=1`
+    );
+    return rows && rows[0] ? mapProduct(rows[0]) : null;
+  }
+
+  async function fetchCategories() {
+    if (!configured) {
+      return [];
     }
-    return data ? mapProduct(data) : null;
+    const rows = await restRequest("categories?select=*&order=sort.asc");
+    return (rows || []).map(mapCategory);
   }
 
   async function signIn(email, password) {
     if (!configured) {
       return null;
     }
-    const { data, error } = await client.auth.signInWithPassword({
+    const supabaseClient = await ensureSdk();
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
       password
     });
@@ -156,16 +229,18 @@
   }
 
   async function signOut() {
-    if (configured) {
-      await client.auth.signOut();
+    if (!configured || !client) {
+      return;
     }
+    await client.auth.signOut();
   }
 
   async function getSession() {
     if (!configured) {
       return null;
     }
-    const { data } = await client.auth.getSession();
+    const supabaseClient = await ensureSdk();
+    const { data } = await supabaseClient.auth.getSession();
     return data.session || null;
   }
 
@@ -173,6 +248,7 @@
     if (!configured) {
       return null;
     }
+    const supabaseClient = await ensureSdk();
     const payload = productRow(product);
     const isRemoteId =
       typeof product.id === "string" &&
@@ -180,8 +256,8 @@
         product.id
       );
     const query = isRemoteId
-      ? client.from("products").update(payload).eq("id", product.id)
-      : client.from("products").insert(payload);
+      ? supabaseClient.from("products").update(payload).eq("id", product.id)
+      : supabaseClient.from("products").insert(payload);
     const { data, error } = await query.select("*").single();
     if (error) {
       throw error;
@@ -193,7 +269,8 @@
     if (!configured) {
       return null;
     }
-    const { data, error } = await client
+    const supabaseClient = await ensureSdk();
+    const { data, error } = await supabaseClient
       .from("products")
       .update({
         status: "archived",
@@ -212,6 +289,7 @@
     if (!configured) {
       return null;
     }
+    const supabaseClient = await ensureSdk();
     const payload = categoryRow(category);
     const isRemoteId =
       typeof category.id === "string" &&
@@ -219,8 +297,8 @@
         category.id
       );
     const query = isRemoteId
-      ? client.from("categories").update(payload).eq("id", category.id)
-      : client.from("categories").insert(payload);
+      ? supabaseClient.from("categories").update(payload).eq("id", category.id)
+      : supabaseClient.from("categories").insert(payload);
     const { data, error } = await query.select("*").single();
     if (error) {
       throw error;
@@ -232,7 +310,8 @@
     if (!configured) {
       return null;
     }
-    const { error: updateError } = await client
+    const supabaseClient = await ensureSdk();
+    const { error: updateError } = await supabaseClient
       .from("products")
       .update({
         category_id: null,
@@ -242,7 +321,7 @@
     if (updateError) {
       throw updateError;
     }
-    const { data, error } = await client
+    const { data, error } = await supabaseClient
       .from("categories")
       .delete()
       .eq("id", id)
@@ -258,7 +337,8 @@
     if (!configured) {
       return null;
     }
-    const { data, error } = await client
+    const supabaseClient = await ensureSdk();
+    const { data, error } = await supabaseClient
       .from("company_profile")
       .upsert(
         {
@@ -286,6 +366,7 @@
     if (!configured) {
       return null;
     }
+    const supabaseClient = await ensureSdk();
     const extension = file.name && file.name.includes(".")
       ? file.name.split(".").pop().toLowerCase()
       : "jpg";
@@ -293,7 +374,7 @@
       .toString(36)
       .slice(2, 10)}.${extension}`;
     const path = `${productId}/${safeName}`;
-    const { error } = await client.storage
+    const { error } = await supabaseClient.storage
       .from(config.imageBucket)
       .upload(path, file, {
         cacheControl: "31536000",
@@ -303,7 +384,9 @@
     if (error) {
       throw error;
     }
-    const { data } = client.storage.from(config.imageBucket).getPublicUrl(path);
+    const { data } = supabaseClient.storage
+      .from(config.imageBucket)
+      .getPublicUrl(path);
     return data.publicUrl;
   }
 
@@ -311,6 +394,7 @@
     if (!configured) {
       return null;
     }
+    const supabaseClient = await ensureSdk();
     const extension = file.name && file.name.includes(".")
       ? file.name.split(".").pop().toLowerCase()
       : "png";
@@ -318,7 +402,7 @@
       .toString(36)
       .slice(2, 10)}.${extension}`;
     const path = `company-logo/${safeName}`;
-    const { error } = await client.storage
+    const { error } = await supabaseClient.storage
       .from(config.imageBucket)
       .upload(path, file, {
         cacheControl: "31536000",
@@ -328,13 +412,15 @@
     if (error) {
       throw error;
     }
-    const { data } = client.storage.from(config.imageBucket).getPublicUrl(path);
+    const { data } = supabaseClient.storage
+      .from(config.imageBucket)
+      .getPublicUrl(path);
     return data.publicUrl;
   }
 
   function subscribeCatalog(onChange) {
-    if (!configured || typeof onChange !== "function") {
-      return () => {};
+    if (!configured || !client || typeof onChange !== "function") {
+      return null;
     }
     const channel = client
       .channel("denim-catalog")
@@ -361,8 +447,10 @@
     isConfigured: () => configured,
     adminLogin: config.adminLogin || "xbl123",
     adminEmail: config.adminEmail || "",
+    preloadSdk: ensureSdk,
     fetchCatalog,
     fetchProduct,
+    fetchCategories,
     signIn,
     signOut,
     getSession,

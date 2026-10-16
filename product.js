@@ -34,6 +34,8 @@ function renderMainImage(product, imageIndex) {
       <img
         src="${product.images[imageIndex]}"
         alt="${escapeHtml(product.name)}"
+        decoding="async"
+        fetchpriority="high"
       />
     `;
   } else {
@@ -55,7 +57,9 @@ function renderThumbnails(product, activeIndex) {
           data-detail-image="${index}"
           aria-label="查看图片 ${index + 1}"
         >
-          <img src="${image}" alt="${escapeHtml(product.name)} 图片 ${index + 1}" />
+          <img src="${image}" alt="${escapeHtml(
+            product.name
+          )} 图片 ${index + 1}" loading="lazy" decoding="async" />
         </button>
       `
     )
@@ -93,7 +97,7 @@ function renderProduct(product, categories) {
   renderThumbnails(product, activeImage);
   $("#productDetail").hidden = false;
 
-  $("#detailThumbnails").addEventListener("click", (event) => {
+  $("#detailThumbnails").onclick = (event) => {
     const button = event.target.closest("[data-detail-image]");
     if (!button) {
       return;
@@ -101,7 +105,7 @@ function renderProduct(product, categories) {
     activeImage = Number(button.dataset.detailImage);
     renderMainImage(product, activeImage);
     renderThumbnails(product, activeImage);
-  });
+  };
 
   if (window.lucide) {
     window.lucide.createIcons();
@@ -112,43 +116,35 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const productId = params.get("id");
   let data = getData();
-  let product = null;
+  const cachedProduct = data.products.find((item) => item.id === productId);
+  let rendered = false;
 
-  if (
-    window.denimCloud &&
-    window.denimCloud.isConfigured() &&
-    productId
-  ) {
-    try {
-      product = await window.denimCloud.fetchProduct(productId);
-    } catch (error) {
-      console.warn("Unable to load product from Supabase.", error);
-      product = data.products.find((item) => item.id === productId) || null;
-    }
-    try {
-      const catalog = await window.denimCloud.fetchCatalog();
-      if (catalog) {
-        data = {
-          products: catalog.products || [],
-          categories: catalog.categories || data.categories,
-          company: catalog.company && catalog.company.name
-            ? catalog.company
-            : data.company
-        };
-      }
-    } catch (error) {
-      console.warn("Unable to load catalog extras from Supabase.", error);
-    }
-  } else if (productId) {
-    product = data.products.find((item) => item.id === productId);
+  if (cachedProduct) {
+    renderProduct(cachedProduct, data.categories);
+    rendered = true;
   }
 
-  if (!product) {
-    window.location.replace("index.html");
+  if (!window.denimCloud || !window.denimCloud.isConfigured() || !productId) {
+    if (!rendered) {
+      window.location.replace("index.html");
+    }
     return;
   }
 
-  renderProduct(product, data.categories);
+  try {
+    const remoteProduct = await window.denimCloud.fetchProduct(productId);
+    if (remoteProduct) {
+      const categories = await window.denimCloud.fetchCategories();
+      renderProduct(remoteProduct, categories);
+      rendered = true;
+    }
+  } catch (error) {
+    console.warn("Unable to refresh product from Supabase.", error);
+  }
+
+  if (!rendered) {
+    window.location.replace("index.html");
+  }
 }
 
 document.addEventListener("DOMContentLoaded", init);

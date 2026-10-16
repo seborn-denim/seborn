@@ -13,6 +13,7 @@ const state = {
   companyCarouselTimer: null,
   companyCarouselAnimationTimer: null,
   companyCarouselShowingBack: false,
+  cloudUnsubscribe: null,
   categories: [
     { id: "cat-1", name: "经典靛蓝", sort: 1, enabled: true },
     { id: "cat-2", name: "原色牛仔", sort: 2, enabled: true },
@@ -266,12 +267,15 @@ async function hydrateFromCloud() {
 }
 
 function subscribeCloud() {
-  if (!cloudConfigured()) {
-    return () => {};
+  if (!cloudConfigured() || state.cloudUnsubscribe) {
+    return;
   }
-  return window.denimCloud.subscribeCatalog(() => {
+  const cleanup = window.denimCloud.subscribeCatalog(() => {
     hydrateFromCloud();
   });
+  if (cleanup) {
+    state.cloudUnsubscribe = cleanup;
+  }
 }
 
 function escapeHtml(value) {
@@ -422,7 +426,9 @@ function publicProducts(options) {
 
 function renderStoreProduct(product) {
   const image = product.images.length
-    ? `<img src="${product.images[0]}" alt="${escapeHtml(product.name)}" />`
+    ? `<img src="${product.images[0]}" alt="${escapeHtml(
+        product.name
+      )}" loading="lazy" decoding="async" />`
     : `<div class="fabric-swatch store-fabric ${product.fabricClass}"></div>`;
 
   return `
@@ -611,7 +617,9 @@ function statusOptions(selectedStatus) {
 
 function renderAdminProductImage(product) {
   if (product.images.length) {
-    return `<img src="${product.images[0]}" alt="${escapeHtml(product.name)}" />`;
+    return `<img src="${product.images[0]}" alt="${escapeHtml(
+      product.name
+    )}" loading="lazy" decoding="async" />`;
   }
   return `
     <div class="fabric-swatch product-placeholder ${product.fabricClass}">
@@ -630,7 +638,9 @@ function renderImageThumbs(product) {
         .map(
           (image, index) => `
             <div class="image-thumb ${index === 0 ? "cover" : ""}">
-              <img src="${image}" alt="${escapeHtml(product.name)} 图片 ${index + 1}" />
+              <img src="${image}" alt="${escapeHtml(
+                product.name
+              )} 图片 ${index + 1}" loading="lazy" decoding="async" />
               <div class="thumb-actions">
                 ${
                   index === 0
@@ -1247,10 +1257,19 @@ async function saveCompany(event) {
 }
 
 function bindEvents() {
-  $("#openAdminLogin").addEventListener("click", () => openModal("adminLoginModal"));
+  $("#openAdminLogin").addEventListener("click", () => {
+    if (window.denimCloud && window.denimCloud.preloadSdk) {
+      window.denimCloud.preloadSdk().catch(() => {});
+    }
+    openModal("adminLoginModal");
+  });
   $("#returnStoreButton").addEventListener("click", showStore);
   $("#logoutButton").addEventListener("click", async () => {
     state.isAdmin = false;
+    if (state.cloudUnsubscribe) {
+      state.cloudUnsubscribe();
+      state.cloudUnsubscribe = null;
+    }
     if (cloudConfigured()) {
       await window.denimCloud.signOut();
     }
@@ -1293,6 +1312,7 @@ function bindEvents() {
     $("#adminPassword").value = "";
     closeModal("adminLoginModal");
     showAdmin();
+    subscribeCloud();
     showToast(
       state.cloudReady
         ? "登录成功"
