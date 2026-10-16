@@ -4,7 +4,7 @@
 
 ## 在线访问
 
-GitHub Pages：<https://lj789520.github.io/seborn/>
+GitHub Pages：<https://seborn-denim.github.io/seborn/>
 
 ## 页面
 
