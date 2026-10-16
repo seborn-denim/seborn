@@ -2415,14 +2415,22 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .product-editor-card {
+    display: flex;
+    flex-direction: column;
+  }
+
   .product-card-footer {
+    order: -1;
     align-items: stretch;
     flex-direction: column;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
   }
 
   .product-card-footer > div {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
   }
 }
 
