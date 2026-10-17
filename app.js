@@ -592,7 +592,7 @@ function renderRecentlyViewed(visible) {
   const products = getRecentProductIds()
     .map((id) => state.products.find((product) => product.id === id))
     .filter((product) => product && product.status === "published")
-    .slice(0, 6);
+    .slice(0, 3);
   section.hidden = products.length === 0;
   $("#recentlyViewedGrid").innerHTML = products
     .map(renderStoreProduct)

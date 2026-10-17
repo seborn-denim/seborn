@@ -1,4 +1,4 @@
-const CACHE_NAME = "seborn-shell-20261017b";
+const CACHE_NAME = "seborn-shell-20261017c";
 const CORE_ASSETS = [
   "./",
   "./index.html",

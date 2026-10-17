@@ -550,7 +550,15 @@ textarea:focus-visible {
 }
 
 .store-recent-section {
-  margin-top: 28px;
+  margin-top: 20px;
+}
+
+.store-recent-section .store-section-head {
+  margin-bottom: 10px;
+}
+
+.store-recent-section .store-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .store-filter-panel {
@@ -2713,6 +2721,18 @@ textarea:focus-visible {
 }
 
 @media (max-width: 560px) {
+  .store-recent-section {
+    margin-top: 14px;
+  }
+
+  .store-recent-section .store-section-head {
+    margin-bottom: 8px;
+  }
+
+  .store-recent-section .store-section-head p {
+    display: none;
+  }
+
   .store-content {
     width: calc(100% - 28px);
     padding-bottom: calc(46px + env(safe-area-inset-bottom));
