@@ -19,6 +19,19 @@ function displayValue(value) {
   return value ? escapeHtml(value) : "未填写";
 }
 
+function thumbnailUrlForImage(url) {
+  if (!url || url.startsWith("data:")) {
+    return url;
+  }
+  if (/\.large\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(url)) {
+    return url.replace(
+      /\.large\.(jpg|jpeg|png|webp)(\?.*)?$/i,
+      ".thumb.$1$2"
+    );
+  }
+  return url.replace(/\.(jpg|jpeg|png|webp)(\?.*)?$/i, ".thumb.$1$2");
+}
+
 function getData() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
@@ -34,14 +47,32 @@ function getData() {
 function renderMainImage(product, imageIndex) {
   const mainImage = $("#detailMainImage");
   if (product.images.length) {
+    const fullImage = product.images[imageIndex];
+    const previewImage = thumbnailUrlForImage(fullImage);
     mainImage.innerHTML = `
       <img
-        src="${product.images[imageIndex]}"
+        src="${previewImage}"
         alt="${escapeHtml(product.name)}"
         decoding="async"
         fetchpriority="high"
       />
     `;
+    const imageElement = mainImage.querySelector("img");
+    imageElement.onerror = () => {
+      if (imageElement.dataset.retried) {
+        imageElement.style.visibility = "hidden";
+        return;
+      }
+      imageElement.dataset.retried = "1";
+      imageElement.src = fullImage;
+    };
+    const fullLoader = new Image();
+    fullLoader.onload = () => {
+      if (currentImageIndex === imageIndex) {
+        imageElement.src = fullImage;
+      }
+    };
+    fullLoader.src = fullImage;
     mainImage.onclick = () => openLightbox(imageIndex);
   } else {
     mainImage.innerHTML = `
@@ -63,7 +94,7 @@ function renderThumbnails(product, activeIndex) {
           data-detail-image="${index}"
           aria-label="查看图片 ${index + 1}"
         >
-          <img src="${image}" alt="${escapeHtml(
+          <img src="${thumbnailUrlForImage(image)}" alt="${escapeHtml(
             product.name
           )} 图片 ${index + 1}" loading="lazy" decoding="async" />
         </button>

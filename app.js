@@ -524,15 +524,18 @@ function publicProducts(options) {
     .map((item) => item.product);
 }
 
-function renderStoreProduct(product) {
+function renderStoreProduct(product, index) {
   const fullImage = product.images[0] || "";
   const thumbImage = thumbnailUrlForImage(fullImage);
+  const cardIndex = Number(index) || 0;
   const image = fullImage
     ? `<img src="${thumbImage}" alt="${escapeHtml(
         product.name
-      )}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${escapeHtml(
+      )}" loading="${cardIndex < 3 ? "eager" : "lazy"}" decoding="async" fetchpriority="${
+        cardIndex === 0 ? "high" : "auto"
+      }" onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src='${escapeHtml(
         fullImage
-      )}'" />`
+      )}';}else{this.style.visibility='hidden';}" />`
     : `<div class="fabric-swatch store-fabric ${product.fabricClass}"></div>`;
 
   return `
@@ -567,6 +570,12 @@ function renderStoreProduct(product) {
 function thumbnailUrlForImage(url) {
   if (!url || url.startsWith("data:")) {
     return url;
+  }
+  if (/\.large\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(url)) {
+    return url.replace(
+      /\.large\.(jpg|jpeg|png|webp)(\?.*)?$/i,
+      ".thumb.$1$2"
+    );
   }
   return url.replace(/\.(jpg|jpeg|png|webp)(\?.*)?$/i, ".thumb.$1$2");
 }
