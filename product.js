@@ -75,6 +75,8 @@ function renderProduct(product, categories) {
     ["成分", product.composition],
     ["布宽", product.width],
     ["克重", product.weight],
+    ["参考直缩", product.shrinkageLength],
+    ["参考横缩", product.shrinkageWidth],
     ["挂卡区域", product.location]
   ];
 

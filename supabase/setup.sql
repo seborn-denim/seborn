@@ -19,6 +19,8 @@ create table if not exists public.products (
   composition text not null default '',
   width text not null default '',
   weight text not null default '',
+  reference_length_shrinkage text not null default '',
+  reference_width_shrinkage text not null default '',
   location text not null default '',
   status text not null default 'draft'
     check (status in ('draft', 'published', 'archived')),
@@ -28,6 +30,11 @@ create table if not exists public.products (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.products
+  add column if not exists reference_length_shrinkage text not null default '';
+alter table public.products
+  add column if not exists reference_width_shrinkage text not null default '';
 
 create table if not exists public.company_profile (
   id text primary key default 'company_profile',

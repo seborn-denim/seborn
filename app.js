@@ -208,6 +208,8 @@ const IMPORT_FIELD_ALIASES = {
   preWashWeight: ["洗前克重", "洗前重量", "洗前"],
   postWashWeight: ["洗后克重", "洗后重量", "洗后"],
   weight: ["克重", "重量", "gsm", "oz", "盎司"],
+  shrinkageLength: ["参考直缩", "直缩", "经向缩率", "长度缩率"],
+  shrinkageWidth: ["参考横缩", "横缩", "纬向缩率", "宽度缩率"],
   location: ["挂卡区域", "挂卡区", "区域", "位置", "存放位置"],
   images: ["图片", "图片地址", "图片链接", "image", "images", "图片url"],
   name: ["商品名称", "名称", "品名"]
@@ -830,6 +832,8 @@ function parseProductImportText(text) {
         composition: String(record.composition || "").trim(),
         width: String(record.width || "").trim(),
         weight: weightParts.join("；"),
+        shrinkageLength: String(record.shrinkageLength || "").trim(),
+        shrinkageWidth: String(record.shrinkageWidth || "").trim(),
         location: String(record.location || "").trim(),
         images: Array.isArray(record.images) ? record.images : [],
         status: !code ? "invalid" : duplicate ? "duplicate" : "valid"
@@ -881,6 +885,8 @@ function renderImportPreview() {
                 成分：${escapeHtml(record.composition || "未填写")}
                 · 布宽：${escapeHtml(record.width || "未填写")}
                 · 克重：${escapeHtml(record.weight || "未填写")}
+                · 参考直缩：${escapeHtml(record.shrinkageLength || "未填写")}
+                · 参考横缩：${escapeHtml(record.shrinkageWidth || "未填写")}
                 · 挂卡区域：${escapeHtml(record.location || "未填写")}
                 <br />
                 图片：${record.images.length} 张
@@ -934,6 +940,8 @@ async function confirmProductImport() {
       composition: record.composition,
       width: record.width,
       weight: record.weight,
+      shrinkageLength: record.shrinkageLength,
+      shrinkageWidth: record.shrinkageWidth,
       location: record.location,
       status: "draft",
       fabricClass: "fabric-indigo",
@@ -1089,6 +1097,14 @@ function renderAdminProductCard(product) {
           <label class="field">
             <span>克重</span>
             <input data-product-id="${product.id}" data-field="weight" type="text" value="${escapeHtml(product.weight)}" />
+          </label>
+          <label class="field">
+            <span>参考直缩</span>
+            <input data-product-id="${product.id}" data-field="shrinkageLength" type="text" value="${escapeHtml(product.shrinkageLength || "")}" placeholder="例如：3%" />
+          </label>
+          <label class="field">
+            <span>参考横缩</span>
+            <input data-product-id="${product.id}" data-field="shrinkageWidth" type="text" value="${escapeHtml(product.shrinkageWidth || "")}" placeholder="例如：2.5%" />
           </label>
           <label class="field">
             <span>挂卡区域</span>
@@ -1447,6 +1463,8 @@ function addProduct() {
     composition: "",
     width: "",
     weight: "",
+    shrinkageLength: "",
+    shrinkageWidth: "",
     location: "",
     status: "draft",
     fabricClass: "fabric-indigo",
