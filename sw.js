@@ -1,8 +1,7 @@
-const CACHE_NAME = "seborn-shell-20261017e";
+const CACHE_NAME = "seborn-shell-20261017f";
 const CORE_ASSETS = [
   "./",
   "./index.html",
-  "./admin.html",
   "./product.html",
   "./styles.css",
   "./vendor/lucide-lite.js",

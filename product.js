@@ -1,5 +1,4 @@
 const STORAGE_KEY = "denim-ui-state-v1";
-const RECENT_KEY = "seborn-recent-products";
 
 const $ = (selector) => document.querySelector(selector);
 let currentProduct = null;
@@ -103,19 +102,6 @@ function renderThumbnails(product, activeIndex) {
     .join("");
 }
 
-function rememberRecentProduct(productId) {
-  try {
-    const ids = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
-    const next = [
-      productId,
-      ...(Array.isArray(ids) ? ids : []).filter((id) => id !== productId)
-    ].slice(0, 10);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-  } catch (error) {
-    localStorage.removeItem(RECENT_KEY);
-  }
-}
-
 function setNetworkBanner(visible, message) {
   const banner = $("#networkBanner");
   if (message) {
@@ -158,7 +144,6 @@ function renderProduct(product, categories) {
   renderMainImage(product, currentImageIndex);
   renderThumbnails(product, currentImageIndex);
   $("#productDetail").hidden = false;
-  rememberRecentProduct(product.id);
 
   $("#detailThumbnails").onclick = (event) => {
     const button = event.target.closest("[data-detail-image]");

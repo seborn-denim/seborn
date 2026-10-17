@@ -580,34 +580,6 @@ function thumbnailUrlForImage(url) {
   return url.replace(/\.(jpg|jpeg|png|webp)(\?.*)?$/i, ".thumb.$1$2");
 }
 
-function getRecentProductIds() {
-  try {
-    const ids = JSON.parse(
-      localStorage.getItem("seborn-recent-products") || "[]"
-    );
-    return Array.isArray(ids) ? ids : [];
-  } catch (error) {
-    return [];
-  }
-}
-
-function renderRecentlyViewed(visible) {
-  const section = $("#recentlyViewedSection");
-  if (!visible) {
-    section.hidden = true;
-    $("#recentlyViewedGrid").innerHTML = "";
-    return;
-  }
-  const products = getRecentProductIds()
-    .map((id) => state.products.find((product) => product.id === id))
-    .filter((product) => product && product.status === "published")
-    .slice(0, 3);
-  section.hidden = products.length === 0;
-  $("#recentlyViewedGrid").innerHTML = products
-    .map(renderStoreProduct)
-    .join("");
-}
-
 function renderStoreFilterOptions(products) {
   const currentColor = state.storeFilters.color;
   const colors = Array.from(
@@ -690,7 +662,6 @@ function renderStore() {
   } else {
     startCompanyCarousel();
   }
-  renderRecentlyViewed(!showProducts);
   renderStoreFilterOptions(allPublishedProducts);
   $("#toggleFiltersButton").classList.toggle("is-hidden", !showProducts);
   $("#storeFilterPanel").classList.toggle(
@@ -1460,16 +1431,25 @@ function showStore() {
   renderStore();
 }
 
-function setupAdminRoute() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("admin") !== "1") {
-    return;
-  }
-  $("#openAdminLogin").hidden = false;
-  if (window.denimCloud && window.denimCloud.preloadSdk) {
-    window.denimCloud.preloadSdk().catch(() => {});
-  }
-  window.setTimeout(() => openModal("adminLoginModal"), 0);
+function setupAdminAccess() {
+  let clickCount = 0;
+  let resetTimer = null;
+  $(".store-brand").addEventListener("click", () => {
+    clickCount += 1;
+    window.clearTimeout(resetTimer);
+    if (clickCount >= 3) {
+      clickCount = 0;
+      $("#openAdminLogin").hidden = false;
+      if (window.denimCloud && window.denimCloud.preloadSdk) {
+        window.denimCloud.preloadSdk().catch(() => {});
+      }
+      openModal("adminLoginModal");
+      return;
+    }
+    resetTimer = window.setTimeout(() => {
+      clickCount = 0;
+    }, 1200);
+  });
 }
 
 function updateProductFromInput(target) {
@@ -2388,7 +2368,7 @@ async function init() {
   restoreState();
   registerServiceWorker();
   bindEvents();
-  setupAdminRoute();
+  setupAdminAccess();
   renderStore();
   renderAdminProducts();
   renderCategories();
