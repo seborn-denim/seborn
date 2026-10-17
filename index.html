@@ -7,7 +7,7 @@
     <link rel="icon" href="data:," />
     <link rel="preconnect" href="https://uxbxeaxdfftvleyiufdx.supabase.co" crossorigin />
     <link rel="dns-prefetch" href="https://uxbxeaxdfftvleyiufdx.supabase.co" />
-    <link rel="stylesheet" href="./styles.css?v=20261016c" />
+    <link rel="stylesheet" href="./styles.css?v=20261017a" />
   </head>
   <body>
     <div class="store-view" id="storeView">
@@ -22,10 +22,10 @@
 
         <label class="store-search">
           <i data-lucide="search"></i>
-          <input id="storeSearch" type="search" placeholder="搜索商品名称或编号" />
+          <input id="storeSearch" type="search" placeholder="搜索商品编号" />
         </label>
 
-        <button class="store-admin-button" id="openAdminLogin">
+        <button class="store-admin-button" id="openAdminLogin" hidden>
           <i data-lucide="shield-check"></i>
           管理员登录
         </button>
@@ -63,18 +63,61 @@
           </div>
         </div>
 
+        <section class="store-recent-section" id="recentlyViewedSection" hidden>
+          <div class="store-section-head">
+            <div>
+              <h2>最近查看</h2>
+              <p>快速返回最近打开过的商品。</p>
+            </div>
+          </div>
+          <section class="store-grid" id="recentlyViewedGrid"></section>
+        </section>
+
         <section class="store-section-head">
           <div>
             <h2 id="storeSectionTitle">商品分类</h2>
             <p id="storeSectionSubtitle">先选择商品分类，再查看该分类下的商品。</p>
           </div>
-          <button class="secondary-button is-hidden" id="backToCategoriesButton" type="button">
-            <i data-lucide="arrow-left"></i>
-            返回分类
-          </button>
+          <div class="store-head-actions">
+            <button class="secondary-button is-hidden" id="toggleFiltersButton" type="button">
+              <i data-lucide="sliders-horizontal"></i>
+              筛选
+            </button>
+            <button class="secondary-button is-hidden" id="backToCategoriesButton" type="button">
+              <i data-lucide="arrow-left"></i>
+              返回分类
+            </button>
+          </div>
         </section>
 
         <section class="store-category-grid" id="storeCategoryGrid"></section>
+        <section class="store-filter-panel is-hidden" id="storeFilterPanel">
+          <label class="store-filter-field">
+            <span>颜色</span>
+            <select id="filterColor">
+              <option value="">全部颜色</option>
+            </select>
+          </label>
+          <label class="store-filter-field">
+            <span>成分</span>
+            <input id="filterComposition" type="search" placeholder="例如：棉、莱赛尔" />
+          </label>
+          <label class="store-filter-field">
+            <span>布宽</span>
+            <input id="filterWidth" type="search" placeholder="例如：59-60" />
+          </label>
+          <label class="store-filter-field">
+            <span>克重</span>
+            <input id="filterWeight" type="search" placeholder="例如：11.4" />
+          </label>
+          <label class="store-filter-field">
+            <span>缩率</span>
+            <input id="filterShrinkage" type="search" placeholder="直缩或横缩" />
+          </label>
+          <button class="secondary-button" id="clearStoreFilters" type="button">
+            清除筛选
+          </button>
+        </section>
         <section class="store-grid" id="storeGrid"></section>
         <div class="store-empty" id="storeEmpty" hidden>没有找到匹配商品。</div>
 
@@ -414,10 +457,14 @@
     </div>
 
     <div class="toast" id="toast" aria-live="polite"></div>
-    <script src="./vendor/lucide-lite.js?v=20261016c"></script>
-    <script src="./supabase-config.js?v=20261016c"></script>
-    <script src="./cloud.js?v=20261016c"></script>
-    <script src="./data.js?v=20261016c"></script>
-    <script src="./app.js?v=20261016c"></script>
+    <div class="network-banner is-hidden" id="networkBanner">
+      <span id="networkBannerText">网络连接不稳定，正在使用缓存数据。</span>
+      <button id="networkReloadButton" type="button">重新加载</button>
+    </div>
+    <script src="./vendor/lucide-lite.js?v=20261017a"></script>
+    <script src="./supabase-config.js?v=20261017a"></script>
+    <script src="./cloud.js?v=20261017a"></script>
+    <script src="./data.js?v=20261017a"></script>
+    <script src="./app.js?v=20261017a"></script>
   </body>
 </html>

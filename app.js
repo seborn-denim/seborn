@@ -6,6 +6,14 @@ const state = {
   productSearch: "",
   storeSearch: "",
   selectedCategoryId: "",
+  storeFiltersOpen: false,
+  storeFilters: {
+    color: "",
+    composition: "",
+    width: "",
+    weight: "",
+    shrinkage: ""
+  },
   storePage: 1,
   storePageSize: 9,
   editingCategoryId: null,
@@ -275,6 +283,7 @@ async function hydrateFromCloud() {
       state.company = catalog.company;
     }
     state.cloudReady = true;
+    setNetworkBanner(false);
     persistState();
     renderStore();
     renderAdminProducts();
@@ -282,6 +291,7 @@ async function hydrateFromCloud() {
     renderCompany();
   } catch (error) {
     state.cloudReady = false;
+    setNetworkBanner(true, "商品数据加载较慢，当前显示最近缓存。");
     console.warn("Supabase catalog unavailable, using local data.", error);
   }
 }
@@ -420,6 +430,17 @@ function showToast(message) {
   showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2200);
 }
 
+function setNetworkBanner(visible, message) {
+  const banner = $("#networkBanner");
+  if (!banner) {
+    return;
+  }
+  if (message) {
+    $("#networkBannerText").textContent = message;
+  }
+  banner.classList.toggle("is-hidden", !visible);
+}
+
 function categoryName(categoryId) {
   const category = state.categories.find((item) => item.id === categoryId);
   return category ? category.name : "未分类";
@@ -428,7 +449,8 @@ function categoryName(categoryId) {
 function publicProducts(options) {
   const settings = options || {};
   const keyword = state.storeSearch.trim().toLowerCase();
-  return state.products
+  const filters = state.storeFilters;
+  const products = state.products
     .filter((product) => {
       if (product.status !== "published") {
         return false;
@@ -440,15 +462,77 @@ function publicProducts(options) {
         return false;
       }
       const searchable = `${product.name} ${product.code}`.toLowerCase();
-      return !keyword || searchable.includes(keyword);
+      if (keyword && !searchable.includes(keyword)) {
+        return false;
+      }
+      if (
+        filters.color &&
+        String(product.color || "").toLowerCase() !==
+          filters.color.toLowerCase()
+      ) {
+        return false;
+      }
+      if (
+        filters.composition &&
+        !String(product.composition || "")
+          .toLowerCase()
+          .includes(filters.composition.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        filters.width &&
+        !String(product.width || "")
+          .toLowerCase()
+          .includes(filters.width.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        filters.weight &&
+        !String(product.weight || "")
+          .toLowerCase()
+          .includes(filters.weight.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        filters.shrinkage &&
+        !`${product.shrinkageLength || ""} ${
+          product.shrinkageWidth || ""
+        }`
+          .toLowerCase()
+          .includes(filters.shrinkage.toLowerCase())
+      ) {
+        return false;
+      }
+      return true;
     });
+
+  if (!keyword) {
+    return products;
+  }
+
+  return products
+    .map((product, index) => {
+      const code = String(product.code || "").toLowerCase();
+      const rank =
+        code === keyword ? 0 : code.startsWith(keyword) ? 1 : 2;
+      return { product, rank, index };
+    })
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((item) => item.product);
 }
 
 function renderStoreProduct(product) {
-  const image = product.images.length
-    ? `<img src="${product.images[0]}" alt="${escapeHtml(
+  const fullImage = product.images[0] || "";
+  const thumbImage = thumbnailUrlForImage(fullImage);
+  const image = fullImage
+    ? `<img src="${thumbImage}" alt="${escapeHtml(
         product.name
-      )}" loading="lazy" decoding="async" />`
+      )}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${escapeHtml(
+        fullImage
+      )}'" />`
     : `<div class="fabric-swatch store-fabric ${product.fabricClass}"></div>`;
 
   return `
@@ -480,6 +564,76 @@ function renderStoreProduct(product) {
   `;
 }
 
+function thumbnailUrlForImage(url) {
+  if (!url || url.startsWith("data:")) {
+    return url;
+  }
+  return url.replace(/\.(jpg|jpeg|png|webp)(\?.*)?$/i, ".thumb.$1$2");
+}
+
+function getRecentProductIds() {
+  try {
+    const ids = JSON.parse(
+      localStorage.getItem("seborn-recent-products") || "[]"
+    );
+    return Array.isArray(ids) ? ids : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function renderRecentlyViewed(visible) {
+  const section = $("#recentlyViewedSection");
+  if (!visible) {
+    section.hidden = true;
+    $("#recentlyViewedGrid").innerHTML = "";
+    return;
+  }
+  const products = getRecentProductIds()
+    .map((id) => state.products.find((product) => product.id === id))
+    .filter((product) => product && product.status === "published")
+    .slice(0, 6);
+  section.hidden = products.length === 0;
+  $("#recentlyViewedGrid").innerHTML = products
+    .map(renderStoreProduct)
+    .join("");
+}
+
+function renderStoreFilterOptions(products) {
+  const currentColor = state.storeFilters.color;
+  const colors = Array.from(
+    new Set(
+      products
+        .map((product) => String(product.color || "").trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b, "zh-CN"));
+  $("#filterColor").innerHTML = [
+    '<option value="">全部颜色</option>',
+    ...colors.map(
+      (color) =>
+        `<option value="${escapeHtml(color)}" ${
+          color === currentColor ? "selected" : ""
+        }>${escapeHtml(color)}</option>`
+    )
+  ].join("");
+}
+
+function resetStoreFilters() {
+  state.storeFilters = {
+    color: "",
+    composition: "",
+    width: "",
+    weight: "",
+    shrinkage: ""
+  };
+  $("#filterColor").value = "";
+  $("#filterComposition").value = "";
+  $("#filterWidth").value = "";
+  $("#filterWeight").value = "";
+  $("#filterShrinkage").value = "";
+}
+
 function renderStore() {
   $("#storeCompanyName").textContent = state.company.name || "牛仔布料商品目录";
   $("#storeCompanyInfo").textContent =
@@ -487,6 +641,9 @@ function renderStore() {
   renderCompanyLogo($("#storeCompanyLogo"), state.company.logoUrl || "");
   renderStoreSalesDepartments();
 
+  const allPublishedProducts = state.products.filter(
+    (product) => product.status === "published"
+  );
   const publishedProducts = publicProducts();
   const enabledCategories = state.categories
     .filter((category) => category.enabled)
@@ -494,7 +651,7 @@ function renderStore() {
   const enabledCategoryIds = new Set(
     enabledCategories.map((category) => category.id)
   );
-  const uncategorizedCount = publishedProducts.filter(
+  const uncategorizedCount = allPublishedProducts.filter(
     (product) => !enabledCategoryIds.has(product.categoryId)
   ).length;
   const categories = enabledCategories.concat(
@@ -524,17 +681,22 @@ function renderStore() {
   } else {
     startCompanyCarousel();
   }
+  renderRecentlyViewed(!showProducts);
+  renderStoreFilterOptions(allPublishedProducts);
+  $("#toggleFiltersButton").classList.toggle("is-hidden", !showProducts);
+  $("#storeFilterPanel").classList.toggle(
+    "is-hidden",
+    !showProducts || !state.storeFiltersOpen
+  );
 
-  $("#storeProductCount").textContent = publishedProducts.length;
+  $("#storeProductCount").textContent = allPublishedProducts.length;
   $("#storeCategoryGrid").innerHTML = categories
     .map((category) => {
       const count =
         category.id === "__uncategorized__"
           ? uncategorizedCount
-          : state.products.filter(
-              (product) =>
-                product.status === "published" &&
-                product.categoryId === category.id
+          : allPublishedProducts.filter(
+              (product) => product.categoryId === category.id
             ).length;
       return `
         <button
@@ -1289,6 +1451,18 @@ function showStore() {
   renderStore();
 }
 
+function setupAdminRoute() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("admin") !== "1") {
+    return;
+  }
+  $("#openAdminLogin").hidden = false;
+  if (window.denimCloud && window.denimCloud.preloadSdk) {
+    window.denimCloud.preloadSdk().catch(() => {});
+  }
+  window.setTimeout(() => openModal("adminLoginModal"), 0);
+}
+
 function updateProductFromInput(target) {
   const productId = target.dataset.productId;
   const field = target.dataset.field;
@@ -1498,6 +1672,59 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("图片读取失败"));
+    };
+    image.src = url;
+  });
+}
+
+async function compressImageFile(file, maxWidth, quality, suffix) {
+  if (
+    !file.type.startsWith("image/") ||
+    file.type === "image/svg+xml" ||
+    file.type === "image/gif"
+  ) {
+    return file;
+  }
+  const image = await loadImageFromFile(file);
+  const scale = Math.min(1, maxWidth / image.naturalWidth);
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, width, height);
+  const blob = await new Promise((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", quality)
+  );
+  if (!blob) {
+    return file;
+  }
+  const baseName = (file.name || "product-image").replace(/\.[^.]+$/, "");
+  return new File([blob], `${baseName}-${suffix}.jpg`, {
+    type: "image/jpeg"
+  });
+}
+
+async function prepareProductImageFiles(file) {
+  const [mainFile, thumbnailFile] = await Promise.all([
+    compressImageFile(file, 1600, 0.82, "large"),
+    compressImageFile(file, 420, 0.72, "thumb")
+  ]);
+  return { mainFile, thumbnailFile };
+}
+
 async function addImages(productId, fileList) {
   const product = state.products.find((item) => item.id === productId);
   if (!product || !fileList || !fileList.length) {
@@ -1517,16 +1744,27 @@ async function addImages(productId, fileList) {
 
   try {
     const selected = files.slice(0, remaining);
+    const preparedFiles = await Promise.all(
+      selected.map(prepareProductImageFiles)
+    );
     let images = [];
     if (cloudConfigured() && state.isAdmin) {
       showToast("正在上传图片到云端...");
       images = await Promise.all(
-        selected.map((file) =>
-          window.denimCloud.uploadProductImage(file, product.id)
+        preparedFiles.map((prepared) =>
+          window.denimCloud.uploadProductImage(
+            prepared.mainFile,
+            product.id,
+            prepared.thumbnailFile
+          )
         )
       );
     } else {
-      images = await Promise.all(selected.map(readFileAsDataUrl));
+      images = await Promise.all(
+        preparedFiles.map((prepared) =>
+          readFileAsDataUrl(prepared.mainFile)
+        )
+      );
     }
     product.images = product.images.concat(images);
     product.updatedAt = "图片已更新，尚未保存";
@@ -1693,6 +1931,17 @@ async function saveCompany(event) {
 }
 
 function bindEvents() {
+  window.addEventListener("online", () => setNetworkBanner(false));
+  window.addEventListener("offline", () =>
+    setNetworkBanner(true, "网络已断开，当前显示缓存数据。")
+  );
+  $("#networkReloadButton").addEventListener("click", () => {
+    window.location.reload();
+  });
+  if (!navigator.onLine) {
+    setNetworkBanner(true, "网络已断开，当前显示缓存数据。");
+  }
+
   $("#openAdminLogin").addEventListener("click", () => {
     if (window.denimCloud && window.denimCloud.preloadSdk) {
       window.denimCloud.preloadSdk().catch(() => {});
@@ -1763,6 +2012,36 @@ function bindEvents() {
     renderStore();
   });
 
+  $("#toggleFiltersButton").addEventListener("click", () => {
+    state.storeFiltersOpen = !state.storeFiltersOpen;
+    $("#storeFilterPanel").classList.toggle(
+      "is-hidden",
+      !state.storeFiltersOpen
+    );
+  });
+
+  $("#clearStoreFilters").addEventListener("click", () => {
+    resetStoreFilters();
+    renderStore();
+  });
+
+  [
+    ["filterColor", "color"],
+    ["filterComposition", "composition"],
+    ["filterWidth", "width"],
+    ["filterWeight", "weight"],
+    ["filterShrinkage", "shrinkage"]
+  ].forEach(([elementId, field]) => {
+    $(`#${elementId}`).addEventListener("input", (event) => {
+      state.storeFilters[field] = event.target.value;
+      renderStore();
+    });
+    $(`#${elementId}`).addEventListener("change", (event) => {
+      state.storeFilters[field] = event.target.value;
+      renderStore();
+    });
+  });
+
   const companyCarousel = $("#companyFlipShell");
   if (
     window.matchMedia &&
@@ -1784,6 +2063,8 @@ function bindEvents() {
     }
     state.selectedCategoryId = button.dataset.storeCategory;
     state.storeSearch = "";
+    resetStoreFilters();
+    state.storeFiltersOpen = false;
     state.storePage = 1;
     $("#storeSearch").value = "";
     renderStore();
@@ -1795,6 +2076,8 @@ function bindEvents() {
 
   $("#backToCategoriesButton").addEventListener("click", () => {
     state.selectedCategoryId = "";
+    resetStoreFilters();
+    state.storeFiltersOpen = false;
     state.storePage = 1;
     renderStore();
   });
@@ -2081,9 +2364,22 @@ function bindEvents() {
   });
 }
 
+function registerServiceWorker() {
+  if (
+    "serviceWorker" in navigator &&
+    (window.location.protocol === "https:" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname === "localhost")
+  ) {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  }
+}
+
 async function init() {
   restoreState();
+  registerServiceWorker();
   bindEvents();
+  setupAdminRoute();
   renderStore();
   renderAdminProducts();
   renderCategories();

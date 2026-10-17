@@ -7,7 +7,7 @@
     <link rel="icon" href="data:," />
     <link rel="preconnect" href="https://uxbxeaxdfftvleyiufdx.supabase.co" crossorigin />
     <link rel="dns-prefetch" href="https://uxbxeaxdfftvleyiufdx.supabase.co" />
-    <link rel="stylesheet" href="./styles.css?v=20261016c" />
+    <link rel="stylesheet" href="./styles.css?v=20261017a" />
   </head>
   <body>
     <div class="product-detail-page">
@@ -33,15 +33,49 @@
           <div class="detail-code" id="detailCode"></div>
 
           <dl class="detail-specs" id="detailSpecs"></dl>
+
+          <div class="detail-actions">
+            <button class="secondary-button" id="copyProductSpecs" type="button">
+              <i data-lucide="clipboard-copy"></i>
+              复制规格
+            </button>
+            <button class="secondary-button" id="copyProductLink" type="button">
+              <i data-lucide="link"></i>
+              复制链接
+            </button>
+            <button class="primary-button" id="shareProduct" type="button">
+              <i data-lucide="share-2"></i>
+              分享给客户
+            </button>
+          </div>
         </section>
       </main>
 
     </div>
 
-    <script src="./vendor/lucide-lite.js?v=20261016c"></script>
-    <script src="./supabase-config.js?v=20261016c"></script>
-    <script src="./cloud.js?v=20261016c"></script>
-    <script src="./data.js?v=20261016c"></script>
-    <script src="./product.js?v=20261016c"></script>
+    <div class="image-lightbox is-hidden" id="imageLightbox" aria-hidden="true">
+      <button class="lightbox-close" id="lightboxClose" type="button" aria-label="关闭图片">
+        <i data-lucide="x"></i>
+      </button>
+      <button class="lightbox-nav prev" id="lightboxPrev" type="button" aria-label="上一张">
+        <i data-lucide="chevron-left"></i>
+      </button>
+      <img id="lightboxImage" alt="" />
+      <button class="lightbox-nav next" id="lightboxNext" type="button" aria-label="下一张">
+        <i data-lucide="chevron-right"></i>
+      </button>
+    </div>
+
+    <div class="network-banner is-hidden" id="networkBanner">
+      <span id="networkBannerText">网络连接不稳定，当前显示缓存数据。</span>
+      <button id="networkReloadButton" type="button">重新加载</button>
+    </div>
+    <div class="toast" id="productToast" aria-live="polite"></div>
+
+    <script src="./vendor/lucide-lite.js?v=20261017a"></script>
+    <script src="./supabase-config.js?v=20261017a"></script>
+    <script src="./cloud.js?v=20261017a"></script>
+    <script src="./data.js?v=20261017a"></script>
+    <script src="./product.js?v=20261017a"></script>
   </body>
 </html>

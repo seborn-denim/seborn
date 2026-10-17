@@ -406,7 +406,7 @@
     return mapCompany(data);
   }
 
-  async function uploadProductImage(file, productId) {
+  async function uploadProductImage(file, productId, thumbnailFile) {
     if (!configured) {
       return null;
     }
@@ -414,10 +414,10 @@
     const extension = file.name && file.name.includes(".")
       ? file.name.split(".").pop().toLowerCase()
       : "jpg";
-    const safeName = `${Date.now()}-${Math.random()
+    const baseName = `${Date.now()}-${Math.random()
       .toString(36)
-      .slice(2, 10)}.${extension}`;
-    const path = `${productId}/${safeName}`;
+      .slice(2, 10)}`;
+    const path = `${productId}/${baseName}.${extension}`;
     const { error } = await supabaseClient.storage
       .from(config.imageBucket)
       .upload(path, file, {
@@ -427,6 +427,19 @@
       });
     if (error) {
       throw error;
+    }
+    if (thumbnailFile) {
+      const thumbPath = `${productId}/${baseName}.thumb.${extension}`;
+      const thumbResult = await supabaseClient.storage
+        .from(config.imageBucket)
+        .upload(thumbPath, thumbnailFile, {
+          cacheControl: "31536000",
+          contentType: thumbnailFile.type,
+          upsert: false
+        });
+      if (thumbResult.error) {
+        throw thumbResult.error;
+      }
     }
     const { data } = supabaseClient.storage
       .from(config.imageBucket)
