@@ -1,4 +1,4 @@
-const CACHE_NAME = "seborn-shell-20261017";
+const CACHE_NAME = "seborn-shell-20261017b";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -67,15 +67,32 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(request, { ignoreSearch: true }).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    (async () => {
+      const exact = await caches.match(request);
+      if (exact) {
+        fetch(request)
+          .then((response) => {
+            const copy = response.clone();
+            return caches
+              .open(CACHE_NAME)
+              .then((cache) => cache.put(request, copy));
+          })
+          .catch(() => {});
+        return exact;
+      }
+
+      try {
+        const response = await fetch(request);
+        const copy = response.clone();
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(request, copy);
+        return response;
+      } catch (error) {
+        return (
+          (await caches.match(new Request(`${url.origin}${url.pathname}`))) ||
+          Response.error()
+        );
+      }
+    })()
   );
 });
