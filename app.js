@@ -1088,6 +1088,7 @@ async function confirmProductImport() {
       status: "draft",
       fabricClass: "fabric-indigo",
       images: record.images,
+      storedImages: [],
       updatedAt: "尚未保存"
     };
 
@@ -1185,7 +1186,7 @@ function renderAdminProductCard(product) {
         <div class="image-config-head">
           <div>
             <strong>商品图片</strong>
-            <span>首张图片作为首页封面，最多 9 张</span>
+            <span>统一转换为 4:3 JPEG，首张作为封面，最多 9 张</span>
           </div>
           <label class="upload-button" for="file-${product.id}">
             <i data-lucide="image-plus"></i>
@@ -1195,7 +1196,7 @@ function renderAdminProductCard(product) {
             class="file-input"
             id="file-${product.id}"
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             multiple
             data-image-input="${product.id}"
           />
@@ -1496,16 +1497,29 @@ async function saveProduct(productId) {
     return;
   }
 
+  const previousImages = Array.isArray(product.storedImages)
+    ? product.storedImages.slice()
+    : [];
   if (cloudConfigured()) {
     try {
       const saved = await window.denimCloud.saveProduct(product);
       if (saved) {
         Object.assign(product, saved);
+        const staleImages = previousImages.filter(
+          (url) => !product.images.includes(url)
+        );
+        if (staleImages.length) {
+          window.denimCloud
+            .deleteProductImages(staleImages)
+            .catch(() => {});
+        }
       }
     } catch (error) {
       showToast(`云端保存失败：${error.message || "请检查管理员登录和数据表"}`);
       return;
     }
+  } else {
+    product.storedImages = product.images.slice();
   }
 
   if (!String(product.name || "").trim()) {
@@ -1632,6 +1646,7 @@ function addProduct() {
     status: "draft",
     fabricClass: "fabric-indigo",
     images: [],
+    storedImages: [],
     updatedAt: "尚未保存"
   });
   persistState();
@@ -1677,23 +1692,20 @@ function loadImageFromFile(file) {
   });
 }
 
-async function compressImageFile(file, maxWidth, quality, suffix) {
-  if (
-    !file.type.startsWith("image/") ||
-    file.type === "image/svg+xml" ||
-    file.type === "image/gif"
-  ) {
-    return file;
-  }
+async function normalizeProductImageFile(file, width, height, quality, suffix) {
   const image = await loadImageFromFile(file);
-  const scale = Math.min(1, maxWidth / image.naturalWidth);
-  const width = Math.max(1, Math.round(image.naturalWidth * scale));
-  const height = Math.max(1, Math.round(image.naturalHeight * scale));
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
-  context.drawImage(image, 0, 0, width, height);
+  context.fillStyle = "#f2f0ec";
+  context.fillRect(0, 0, width, height);
+  const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+  const drawWidth = Math.max(1, Math.round(image.naturalWidth * scale));
+  const drawHeight = Math.max(1, Math.round(image.naturalHeight * scale));
+  const drawX = Math.round((width - drawWidth) / 2);
+  const drawY = Math.round((height - drawHeight) / 2);
+  context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
   const blob = await new Promise((resolve) =>
     canvas.toBlob(resolve, "image/jpeg", quality)
   );
@@ -1708,8 +1720,8 @@ async function compressImageFile(file, maxWidth, quality, suffix) {
 
 async function prepareProductImageFiles(file) {
   const [mainFile, thumbnailFile] = await Promise.all([
-    compressImageFile(file, 1600, 0.82, "large"),
-    compressImageFile(file, 420, 0.72, "thumb")
+    normalizeProductImageFile(file, 1600, 1200, 0.82, "large"),
+    normalizeProductImageFile(file, 420, 315, 0.72, "thumb")
   ]);
   return { mainFile, thumbnailFile };
 }
@@ -1721,6 +1733,11 @@ async function addImages(productId, fileList) {
   }
 
   const files = Array.from(fileList);
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (files.some((file) => !allowedTypes.includes(file.type))) {
+    showToast("仅支持 JPG、PNG 和 WebP 图片。");
+    return;
+  }
   const remaining = 9 - product.images.length;
   if (remaining <= 0) {
     showToast("每个商品最多上传 9 张图片。");

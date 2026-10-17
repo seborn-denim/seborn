@@ -117,6 +117,7 @@
   }
 
   function mapProduct(row) {
+    const images = Array.isArray(row.images) ? row.images : [];
     return {
       id: row.id,
       name: row.name || "",
@@ -132,7 +133,8 @@
       location: row.location || "",
       status: row.status || "draft",
       fabricClass: row.fabric_class || "fabric-indigo",
-      images: Array.isArray(row.images) ? row.images : [],
+      images,
+      storedImages: images.slice(),
       updatedAt: formatDate(row.updated_at)
     };
   }
@@ -289,6 +291,31 @@
     return mapProduct(data);
   }
 
+  async function deleteProductImages(images) {
+    if (!configured || !Array.isArray(images) || !images.length) {
+      return;
+    }
+    const supabaseClient = await ensureSdk();
+    const marker = `/storage/v1/object/public/${config.imageBucket}/`;
+    const paths = images
+      .map((url) => {
+        const index = url.indexOf(marker);
+        return index === -1
+          ? ""
+          : decodeURIComponent(url.slice(index + marker.length));
+      })
+      .filter(Boolean);
+    if (!paths.length) {
+      return;
+    }
+    const result = await supabaseClient.storage
+      .from(config.imageBucket)
+      .remove(paths);
+    if (result.error) {
+      throw result.error;
+    }
+  }
+
   async function deleteProduct(id, images) {
     if (!configured) {
       return null;
@@ -304,27 +331,10 @@
       throw error;
     }
 
-    const marker = `/storage/v1/object/public/${config.imageBucket}/`;
-    const paths = (images || [])
-      .map((url) => {
-        const index = url.indexOf(marker);
-        return index === -1
-          ? ""
-          : decodeURIComponent(url.slice(index + marker.length));
-      })
-      .filter(Boolean);
-
-    if (paths.length) {
-      try {
-        const result = await supabaseClient.storage
-          .from(config.imageBucket)
-          .remove(paths);
-        if (result.error) {
-          throw result.error;
-        }
-      } catch (storageError) {
-        console.warn("Product deleted, but image cleanup failed.", storageError);
-      }
+    try {
+      await deleteProductImages(images);
+    } catch (storageError) {
+      console.warn("Product deleted, but image cleanup failed.", storageError);
     }
     return data;
   }
@@ -513,6 +523,7 @@
     getSession,
     saveProduct,
     archiveProduct,
+    deleteProductImages,
     deleteProduct,
     saveCategory,
     deleteCategory,
